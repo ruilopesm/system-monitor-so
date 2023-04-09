@@ -1,0 +1,26 @@
+name: Code quality
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ☁ Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 📜 Cache clang-format dependency
+        uses: actions/cache@v3
+        with:
+          path: /usr/bin/clang-format
+          key: ${{ runner.os }}-clang-format-${{ hashFiles('**/Makefile') }}
+
+      - name: 📦 Install dependencies
+        run: sudo apt-get install -y clang-format
+
+      - name: 🎨 Check code formatting
+        run: make format
