@@ -23,4 +23,4 @@ jobs:
           key: ${{ runner.os }}-clang-format-${{ hashFiles('**/Makefile') }}
       
       - name: 🎨 Check code formatting
-        run: make format
+        run: make check-format

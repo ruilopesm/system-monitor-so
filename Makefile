@@ -43,6 +43,10 @@ format:
 	@clang-format --verbose -i $(SRC_DIR)/* $(INC_DIR)/*;
 	@echo " Successfully formatted"
 
+check-format:
+	@clang-format --dry-run --Werror $(SRC_DIR)/* $(INC_DIR)/*;
+	@echo " Successfully checked format"
+
 lint:
 	@clang-tidy $(SRC_DIR)/* -- $(CFLAGS);
 	@echo " Successfully linted"
