@@ -12,7 +12,6 @@ AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: WithoutElse
 BreakBeforeTernaryOperators: true
 BreakStringLiterals: false
-InsertBraces: true
 PointerAlignment: Left
 ReferenceAlignment: Pointer
 ReflowComments: false
