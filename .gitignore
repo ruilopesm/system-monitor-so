@@ -55,3 +55,6 @@ dkms.conf
 bin
 obj
 tmp
+
+# Files
+compile_commands.json

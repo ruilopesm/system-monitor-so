@@ -1,0 +1,32 @@
+name: Code style
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ☁ Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: 📦 Install dependencies
+        run: sudo apt-get install -y clang-format
+
+      - name: 🎨 Check code formatting
+        run: make check-format
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ☁ Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: 📦 Install dependencies and generate compilation database
+        run: sudo apt-get install -y clang-tidy; pip install compiledb; compiledb make
+
+      - name: 🧹 Check code quality
+        run: make lint
