@@ -1,4 +1,4 @@
-name: Code quality
+name: Code formatting and quality
 
 on:
   push:
@@ -21,6 +21,24 @@ jobs:
         with:
           path: /usr/bin/clang-format
           key: ${{ runner.os }}-clang-format-${{ hashFiles('**/Makefile') }}
-      
+
       - name: 🎨 Check code formatting
         run: make check-format
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ☁ Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 📦 Install dependencies
+        run: sudo apt-get install -y clang-tidy
+
+      - name: 📜 Cache clang-tidy dependency
+        uses: actions/cache@v3
+        with:
+          path: /usr/bin/clang-tidy
+          key: ${{ runner.os }}-clang-tidy-${{ hashFiles('**/Makefile') }}
+
+      - name: 🧹 Check code quality
+        run: make lint
