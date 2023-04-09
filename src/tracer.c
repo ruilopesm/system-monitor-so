@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-int main(void) {
+int main() {
   printf("Hello from the client side\n");
   return 0;
 }
