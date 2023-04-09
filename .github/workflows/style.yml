@@ -1,4 +1,4 @@
-name: Code formatting and quality
+name: Code style
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 jobs:
-  style:
+  format:
     runs-on: ubuntu-latest
     steps:
       - name: ☁ Checkout repository
