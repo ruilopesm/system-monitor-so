@@ -21,6 +21,8 @@ jobs:
         with:
           path: /usr/bin/clang-format
           key: ${{ runner.os }}-clang-format-${{ hashFiles('**/Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-clang-format-
 
       - name: 🎨 Check code formatting
         run: make check-format
@@ -39,6 +41,8 @@ jobs:
         with:
           path: /usr/bin/clang-tidy
           key: ${{ runner.os }}-clang-tidy-${{ hashFiles('**/Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-clang-tidy-
 
       - name: 🧹 Check code quality
         run: make lint
