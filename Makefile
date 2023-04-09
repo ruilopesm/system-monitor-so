@@ -48,7 +48,7 @@ check-format:
 	@echo " Successfully checked format"
 
 lint:
-	@clang-tidy --warnings-as-errors=* $(SRC_DIR)/* $(INC_DIR)/* -- $(CFLAGS); 
+	@clang-tidy --warnings-as-errors=* $(SRC_DIR)/* $(INC_DIR)/*; 
 	@echo " Successfully linted"
 
 # Delete object files if a command fails
