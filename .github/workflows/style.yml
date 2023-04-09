@@ -13,9 +13,6 @@ jobs:
       - name: ☁ Checkout repository
         uses: actions/checkout@v3
 
-      - name: 📦 Install dependencies
-        run: sudo apt-get install -y clang-format
-
       - name: 📜 Cache clang-format dependency
         uses: actions/cache@v3
         with:
@@ -23,6 +20,9 @@ jobs:
           key: ${{ runner.os }}-clang-format-${{ hashFiles('**/Makefile') }}
           restore-keys: |
             ${{ runner.os }}-clang-format-
+      
+      - name: 📦 Install dependencies
+        run: sudo apt-get install -y clang-format
 
       - name: 🎨 Check code formatting
         run: make check-format
@@ -33,9 +33,6 @@ jobs:
       - name: ☁ Checkout repository
         uses: actions/checkout@v3
 
-      - name: 📦 Install dependencies
-        run: sudo apt-get install -y clang-tidy
-
       - name: 📜 Cache clang-tidy dependency
         uses: actions/cache@v3
         with:
@@ -43,6 +40,9 @@ jobs:
           key: ${{ runner.os }}-clang-tidy-${{ hashFiles('**/Makefile') }}
           restore-keys: |
             ${{ runner.os }}-clang-tidy-
+      
+      - name: 📦 Install dependencies
+        run: sudo apt-get install -y clang-tidy
 
       - name: 🧹 Check code quality
         run: make lint
