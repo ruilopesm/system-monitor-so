@@ -1,4 +1,4 @@
-name: Build
+name: Build project
 
 on:
   push:
@@ -10,7 +10,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
+      - name: ☁️ Checkout repository
         uses: actions/checkout@v3
-      - name: Build project
+      
+      - name: 🏗️ Build project
         run: make
