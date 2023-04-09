@@ -27,6 +27,8 @@ jobs:
       
       - name: 📦 Install dependencies
         run: sudo apt-get install -y clang-tidy
+        run: pip install compiledb
+        run: compiledb make
 
       - name: 🧹 Check code quality
         run: make lint
