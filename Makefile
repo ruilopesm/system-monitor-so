@@ -6,13 +6,14 @@ CFLAGS := -Wall -Wextra -Wdouble-promotion -Werror=pedantic -Werror=vla -pedanti
 SRC_DIR := src
 OBJ_DIR := obj
 BIN_DIR := bin
+TMP_DIR := tmp
 INC_DIR := include
 CFLAGS += -I $(INC_DIR)
 
 all: folders client server
 
 folders:
-	@mkdir -p obj bin
+	@mkdir -p $(OBJ_DIR) $(BIN_DIR) $(TMP_DIR)
 
 # Client
 client: folders $(BIN_DIR)/tracer
@@ -36,7 +37,7 @@ $(OBJ_DIR)/monitor.o: $(SRC_DIR)/monitor.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	@rm -rf $(OBJ_DIR) $(BIN_DIR);
+	@rm -rf $(OBJ_DIR) $(BIN_DIR) $(TMP_DIR);
 	@echo " Successfully cleaned"
 
 format:

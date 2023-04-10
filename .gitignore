@@ -55,6 +55,7 @@ dkms.conf
 bin
 obj
 tmp
+.vscode
 
 # Files
 compile_commands.json
