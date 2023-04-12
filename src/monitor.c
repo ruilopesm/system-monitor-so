@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -26,24 +27,24 @@ int main(void) {
     exit(EXIT_FAILURE);
   }
 
-  char buf[1024];
-
   while (true) {
     // Read data from the named pipe
-    int read_bytes = read(fd, buf, sizeof(buf));
+    program_info *info = malloc(sizeof(program_info));
+    int read_bytes = read(fd, info, sizeof(program_info));
     if (read_bytes == -1) {
       perror("read");
       exit(EXIT_FAILURE);
     }
 
     if (read_bytes != 0) {
-      printf("Received data: %.*s\n", read_bytes, buf);
+      printf("PID %d: %s\n", info->pid, info->name);
     }
   }
 
   // Close the named pipe
   close(fd);
 
+  // Delete named pipe file
   if (unlink(MAIN_FIFO_NAME) == -1) {
     perror("unlink");
     exit(EXIT_FAILURE);
