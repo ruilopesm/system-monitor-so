@@ -43,8 +43,6 @@ int main(int argc, char **argv) {
         perror("execlp");
         exit(EXIT_FAILURE);
       }
-
-      exit(EXIT_SUCCESS);
     } else {
       // Parent
       program_info *info = malloc(sizeof(program_info));
