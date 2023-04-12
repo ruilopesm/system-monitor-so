@@ -1,6 +1,14 @@
 # Variables
 CC := gcc
-CFLAGS := -Wall -Wextra -Wdouble-promotion -Werror=pedantic -Werror=vla -pedantic-errors -Wfatal-errors
+CFLAGS := -std=c11 -Wall -Wextra -Wdouble-promotion -Werror=pedantic -Werror=vla -pedantic-errors -Wfatal-errors
+DEBUG ?= 0
+
+# Debug mode
+ifeq ($(DEBUG), 1)
+	CFLAGS += -g -O0
+else
+	CFLAGS += -O3
+endif
 
 # Directories
 SRC_DIR := src
@@ -49,7 +57,7 @@ check-format:
 	@echo " Successfully checked format"
 
 lint:
-	@clang-tidy --warnings-as-errors=* $(SRC_DIR)/* $(INC_DIR)/*; 
+	@clang-tidy --warnings-as-errors=* $(SRC_DIR)/* $(INC_DIR)/*;
 	@echo " Successfully linted"
 
 # Delete object files if a command fails
