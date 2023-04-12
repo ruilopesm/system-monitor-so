@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-#define MAIN_FIFO_NAME "/tmp/main.fifo"
+#define MAIN_FIFO_NAME "tmp/main.fifo"
 
 // TODO: Should have a timestamp attached
 typedef struct {
