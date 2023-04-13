@@ -7,8 +7,23 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "utils.h"
+
+program_info *create_program_info(int pid, char *name, enum request_type type) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+
+  program_info *info = malloc(sizeof(program_info));
+
+  info->pid = pid;
+  strcpy(info->name, name);  // NOLINT
+  info->timestamp = tv.tv_usec;
+  info->type = type;
+
+  return info;
+}
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -37,7 +52,13 @@ int main(int argc, char **argv) {
     int pid = fork();
     if (pid == 0) {
       // Child
-      printf("Running PID %d\n", getpid());
+      program_info *execute_info = create_program_info(getpid(), program, EXECUTE);
+
+      if (write(fd, execute_info, sizeof(program_info)) == -1) {
+        perror("write");
+        exit(EXIT_FAILURE);
+      }
+      free(execute_info);
 
       if (execlp(program, program, NULL) == -1) {
         perror("execlp");
@@ -47,19 +68,25 @@ int main(int argc, char **argv) {
       exit(EXIT_SUCCESS);
     } else {
       // Parent
-      program_info *info = malloc(sizeof(program_info));
-      info->pid = pid;
-      strcpy(info->name, program);  // NOLINT
 
-      if (write(fd, info, sizeof(program_info)) == -1) {
-        perror("write");
-        exit(EXIT_FAILURE);
+      // wait for child to finish
+      int status;
+      if (( pid = wait(&status) ) > 0 && WIFEXITED(status)) {
+          program_info *done_info = create_program_info(pid, program, DONE);
+
+          if (write(fd, done_info, sizeof(program_info)) == -1) {
+            perror("write");
+            exit(EXIT_FAILURE);
+          }
+
+          // Close the named pipe
+          close(fd);
+          free(done_info);
+
+          exit(EXIT_SUCCESS);
       }
 
-      // Close the named pipe
-      close(fd);
-
-      exit(EXIT_SUCCESS);
+      exit(EXIT_FAILURE);
     }
   }
 
