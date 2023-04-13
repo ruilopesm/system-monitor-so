@@ -15,16 +15,20 @@ struct request {
   int pid;
   suseconds_t initial_timestamp;
   suseconds_t final_timestamp;
-  char command[64];
-  char arguments[256];
+  char command[256];
 };
 
-REQ *create_requests_array(int size) {
-  REQ *requests_array = malloc(sizeof(struct request) * size);
+REQ **create_requests_array(int size) {
+  REQ **requests_array = malloc(sizeof(REQ *) * size);
+
+  for (int i = 0; i < size; i++) {
+    requests_array[i] = NULL;
+  }
+
   return requests_array;
 }
 
-int aux_add_request(REQ *requests_array, REQ *request) {
+int aux_add_request(REQ **requests_array, REQ *request) {
   int i = 0;
   while (requests_array[i] != NULL) {
     i++;
@@ -33,7 +37,7 @@ int aux_add_request(REQ *requests_array, REQ *request) {
   return i;
 }
 
-int aux_find_request(REQ *requests_array, int pid) {
+int aux_find_request(REQ **requests_array, int pid) {
   int i = 0;
   while (requests_array[i] != NULL) {
     if (requests_array[i]->pid == pid) {
@@ -44,28 +48,32 @@ int aux_find_request(REQ *requests_array, int pid) {
   return -1;
 }
 
-int upsert_request(REQ *requests_array, program_info *info) {
-  int index;
+int upsert_request(REQ **requests_array, program_info *info) {
+  int index = -1;
 
-  if (info->type != EXECUTE) {
+  if (info->type == EXECUTE) {
     REQ *new_request = malloc(sizeof(struct request));
     new_request->pid = info->pid;
     new_request->initial_timestamp = info->timestamp;
     new_request->final_timestamp = 0;
     strcpy(new_request->command, info->name);
-    strcpy(new_request->arguments, "");
 
-    aux_add_request(requests_array, new_request);
+    index = aux_add_request(requests_array, new_request);
   }
   else {
     index = aux_find_request(requests_array, info->pid);
 
-    if (index == -1)
-      return index;
+    if (index != -1)
+      requests_array[index]->final_timestamp = info->timestamp;
 
-    requests_array[index].final_timestamp = info->timestamp;
+    int total_time = get_total_time(requests_array, index);
+    printf("Total time: %d\n", total_time);
   }
 
-  return requests;
+  return index;
+}
+
+int get_total_time(REQ **requests_array, int index) {
+  return requests_array[index]->final_timestamp - requests_array[index]->initial_timestamp;
 }
 

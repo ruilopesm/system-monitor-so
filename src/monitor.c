@@ -10,12 +10,11 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-#include "utils.h"
 #include "requests.h"
+#include "utils.h"
 
 int main(void) {
-  REQ *requests_array = create_requests_array(100);
-
+  REQ **requests_array = create_requests_array(100);
 
   if (mkfifo(MAIN_FIFO_NAME, 0666) ==
       -1) {  // 0666 stands for read/write permissions for all users
