@@ -5,9 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "parser.h"
 #include "utils.h"
@@ -45,13 +46,15 @@ int main(int argc, char **argv) {
 
   if (!strcmp(option, "execute")) {
     char *argv_copy = strdup(argv[3]);
-    char **program = parse_command(argv_copy);  // Because there should be an -u on argv[2]
+    char **program =
+        parse_command(argv_copy);  // Because there should be an -u on argv[2]
     char *program_name = program[0];
 
     int pid = fork();
     if (pid == 0) {
       // Child
-      program_info *execute_info = create_program_info(getpid(), program[0], EXECUTE);
+      program_info *execute_info =
+          create_program_info(getpid(), program[0], EXECUTE);
 
       if (write(fd, execute_info, sizeof(program_info)) == -1) {
         perror("write");
@@ -67,21 +70,22 @@ int main(int argc, char **argv) {
       exit(EXIT_SUCCESS);
     } else {
       // Parent
-      // wait for child to finish
+
+      // Wait for child to finish
       int status;
-      if (( pid = wait(&status) ) > 0 && WIFEXITED(status)) {
-          program_info *done_info = create_program_info(pid, program[0], DONE);
+      if ((pid = wait(&status)) > 0 && WIFEXITED(status)) {
+        program_info *done_info = create_program_info(pid, program[0], DONE);
 
-          if (write(fd, done_info, sizeof(program_info)) == -1) {
-            perror("write");
-            exit(EXIT_FAILURE);
-          }
+        if (write(fd, done_info, sizeof(program_info)) == -1) {
+          perror("write");
+          exit(EXIT_FAILURE);
+        }
 
-          // Close the named pipe
-          close(fd);
-          free(done_info);
+        // Close the named pipe
+        close(fd);
+        free(done_info);
 
-          exit(EXIT_SUCCESS);
+        exit(EXIT_SUCCESS);
       }
 
       exit(EXIT_FAILURE);

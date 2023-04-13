@@ -56,15 +56,13 @@ int upsert_request(REQ **requests_array, program_info *info) {
     new_request->pid = info->pid;
     new_request->initial_timestamp = info->timestamp;
     new_request->final_timestamp = 0;
-    strcpy(new_request->command, info->name);
+    strcpy(new_request->command, info->name);  // NOLINT
 
     index = aux_add_request(requests_array, new_request);
-  }
-  else {
+  } else {
     index = aux_find_request(requests_array, info->pid);
 
-    if (index != -1)
-      requests_array[index]->final_timestamp = info->timestamp;
+    if (index != -1) requests_array[index]->final_timestamp = info->timestamp;
 
     int total_time = get_total_time(requests_array, index);
     printf("Total time: %d\n", total_time);
@@ -74,6 +72,6 @@ int upsert_request(REQ **requests_array, program_info *info) {
 }
 
 int get_total_time(REQ **requests_array, int index) {
-  return requests_array[index]->final_timestamp - requests_array[index]->initial_timestamp;
+  return requests_array[index]->final_timestamp -
+         requests_array[index]->initial_timestamp;
 }
-

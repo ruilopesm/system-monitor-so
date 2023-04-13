@@ -13,7 +13,8 @@ enum request_type {
 
 typedef struct {
   int pid;
-  char name[50];  // TODO: variable length name: idk why, because a program can't access allocated memory of another program
+  char name
+      [50];  // TODO: variable length name: idk why, because a program can't access allocated memory of another program
   suseconds_t timestamp;
   enum request_type type;
 } program_info;
