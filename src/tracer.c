@@ -31,10 +31,9 @@ int main(int argc, char **argv) {
   char *option = argv[1];
 
   if (!strcmp(option, "execute")) {
-    // FIXME: This only works with a single program,
-    // not with programs that have arguments
+    char *argv_copy = strdup(argv[3]);
     char **program =
-        parse_command(argv[3]);  // Because there should be an -u on argv[2]
+        parse_command(argv_copy);  // Because there should be an -u on argv[2]
     char *program_name = program[0];
 
     int pid = fork();
@@ -50,7 +49,7 @@ int main(int argc, char **argv) {
       // Parent
       program_info *info = malloc(sizeof(program_info));
       info->pid = pid;
-      strcpy(info->name, program_name);  // NOLINT
+      strcpy(info->name, argv[3]);  // NOLINT
 
       if (write(fd, info, sizeof(program_info)) == -1) {
         perror("write");
