@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "parser.h"
 #include "utils.h"
 
 int main(int argc, char **argv) {
@@ -30,16 +31,17 @@ int main(int argc, char **argv) {
   char *option = argv[1];
 
   if (!strcmp(option, "execute")) {
-    // FIXME: This only works with a single program,
-    // not with programs that have arguments
-    char *program = argv[3];  // Because there should be an -u on argv[2]
+    char *argv_copy = strdup(argv[3]);
+    char **program =
+        parse_command(argv_copy);  // Because there should be an -u on argv[2]
+    char *program_name = program[0];
 
     int pid = fork();
     if (pid == 0) {
       // Child
       printf("Running PID %d\n", getpid());
 
-      if (execlp(program, program, NULL) == -1) {
+      if (execvp(program_name, program) == -1) {
         perror("execlp");
         exit(EXIT_FAILURE);
       }
@@ -47,7 +49,7 @@ int main(int argc, char **argv) {
       // Parent
       program_info *info = malloc(sizeof(program_info));
       info->pid = pid;
-      strcpy(info->name, program);  // NOLINT
+      strcpy(info->name, argv[3]);  // NOLINT
 
       if (write(fd, info, sizeof(program_info)) == -1) {
         perror("write");
