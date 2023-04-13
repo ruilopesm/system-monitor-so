@@ -8,8 +8,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "utils.h"
 #include "parser.h"
+#include "utils.h"
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -33,7 +33,8 @@ int main(int argc, char **argv) {
   if (!strcmp(option, "execute")) {
     // FIXME: This only works with a single program,
     // not with programs that have arguments
-    char **program = parse_command(argv[3]); // Beca use there should be an -u on argv[2]
+    char **program =
+        parse_command(argv[3]);  // Because there should be an -u on argv[2]
     char *program_name = program[0];
 
     int pid = fork();
