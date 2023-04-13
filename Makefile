@@ -26,11 +26,15 @@ folders:
 # Client
 client: folders $(BIN_DIR)/tracer
 
-$(BIN_DIR)/tracer: $(OBJ_DIR)/tracer.o
+$(BIN_DIR)/tracer: $(OBJ_DIR)/tracer.o $(OBJ_DIR)/parser.o
 	@$(CC) $(CFLAGS) $< -o $@;
 	@echo " Successfully made tracer (client)"
 
 $(OBJ_DIR)/tracer.o: $(SRC_DIR)/tracer.c
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Parser
+$(OBJ_DIR)/parser.o: $(SRC_DIR)/parser.c
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 # Server
