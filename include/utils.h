@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define MAIN_FIFO_NAME "/tmp/main.fifo"
+#define MAIN_FIFO_NAME "tmp/main.fifo"
 
 enum request_type {
   EXECUTE,
