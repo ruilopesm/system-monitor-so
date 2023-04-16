@@ -6,12 +6,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "requests.h"
 #include "utils.h"
 
 int main(void) {
+  REQ **requests_array = create_requests_array(100);
+
   if (mkfifo(MAIN_FIFO_NAME, 0666) ==
       -1) {  // 0666 stands for read/write permissions for all users
     perror("mkfifo");
@@ -38,7 +42,13 @@ int main(void) {
 
     if (read_bytes != 0) {
       printf("PID %d: %s\n", info->pid, info->name);
+      printf("Timestamp: %ld\n", info->timestamp);
+      printf("Type: %d\n", info->type);
+
+      upsert_request(requests_array, info);
     }
+
+    free(info);
   }
 
   // Close the named pipe

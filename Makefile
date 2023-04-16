@@ -15,7 +15,7 @@ SRC_DIR := src
 
 # Add here .c dependency files
 CLIENT_FILES := tracer.c parser.c utils.c
-SERVER_FILES := monitor.c utils.c
+SERVER_FILES := monitor.c utils.c requests.c
 
 OBJ_DIR := obj
 CLIENT_OBJ := $(addprefix $(OBJ_DIR)/, $(CLIENT_FILES:.c=.o))
