@@ -31,6 +31,13 @@ int main(void) {
     exit(EXIT_FAILURE);
   }
 
+  // Open the named pipe for writing, in order to avoid the server being on hold
+  int fd2 = open(MAIN_FIFO_NAME, O_WRONLY);
+  if (fd2 == -1) {
+    perror("open");
+    exit(EXIT_FAILURE);
+  }
+
   while (true) {
     // Read data from the named pipe
     program_info *info = malloc(sizeof(program_info));
@@ -51,8 +58,16 @@ int main(void) {
     free(info);
   }
 
-  // Close the named pipe
-  close(fd);
+  // Close the named pipes
+  if (close(fd) == -1) {
+    perror("close");
+    exit(EXIT_FAILURE);
+  }
+
+  if (close(fd2) == -1) {
+    perror("close");
+    exit(EXIT_FAILURE);
+  }
 
   // Delete named pipe file
   if (unlink(MAIN_FIFO_NAME) == -1) {
