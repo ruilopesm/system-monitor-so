@@ -7,18 +7,29 @@
 #define MAIN_FIFO_NAME "tmp/main.fifo"
 
 enum request_type {
-  EXECUTE,
-  DONE
+  NEW,
+  UPDATE,
+  ERROR,
+  OK
 };
 
 typedef struct {
-  int pid;
-  char name
-      [50];  // TODO: variable length name: idk why, because a program can't access allocated memory of another program
-  suseconds_t timestamp;
   enum request_type type;
+  int pid;
+  char name[50];
+  suseconds_t timestamp;
 } program_info;
 
 char *strdup(const char *s);
+
+program_info *create_program_info(int pid, char *name, enum request_type type);
+
+char* create_fifo(int pid);
+
+void open_fifo(int *fd, char *fifo_name, int flags);
+
+int write_to_pipe(int fd, program_info *info);
+
+int read_from_pipe(int fd, program_info *info);
 
 #endif  // UTILS_H
