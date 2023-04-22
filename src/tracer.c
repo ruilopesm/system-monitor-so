@@ -1,7 +1,7 @@
 #include "tracer.h"
 
-#include <stdio.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -15,14 +15,13 @@
 
 int execute_program(char *program_name, char **program, int monitor_fd) {
   int pid = getpid();
-  
+
   char *fifo_name = create_fifo(pid);
-  
+
   int child_pid = fork();
   if (child_pid == 0) {
     // Child
-    program_info *execute_info =
-        create_program_info(pid, program[0], NEW);
+    program_info *execute_info = create_program_info(pid, program[0], NEW);
 
     if (write(monitor_fd, execute_info, sizeof(program_info)) == -1) {
       perror("write");
@@ -49,7 +48,7 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
 
       // Read data from the named pipe
       program_info *answer_info = malloc(sizeof(program_info));
-      int read_bytes = read_from_pipe(pid_fd, answer_info);
+      read_from_pipe(pid_fd, answer_info);
 
       if (answer_info->type == ERROR) {
         perror("server error");

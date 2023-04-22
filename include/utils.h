@@ -24,7 +24,7 @@ char *strdup(const char *s);
 
 program_info *create_program_info(int pid, char *name, enum request_type type);
 
-char* create_fifo(int pid);
+char *create_fifo(int pid);
 
 void open_fifo(int *fd, char *fifo_name, int flags);
 

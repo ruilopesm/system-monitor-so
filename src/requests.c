@@ -28,8 +28,10 @@ REQ **create_requests_array(int size) {
   return requests_array;
 }
 
-REQ *create_request(int pid, suseconds_t initial_timestamp,
-                    suseconds_t final_timestamp, char *command) {
+REQ *create_request(
+    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
+    char *command
+) {
   REQ *request = malloc(sizeof(struct request));
 
   request->pid = pid;
@@ -64,17 +66,15 @@ int upsert_request(REQ **requests_array, program_info *info) {
   int index = -1;
 
   if (info->type == NEW) {
-    REQ *new_request = create_request(info->pid, info->timestamp, 0,
-                                      info->name);
+    REQ *new_request =
+        create_request(info->pid, info->timestamp, 0, info->name);
 
-    program_info *response_info =
-        create_program_info(getpid(), "monitor", OK);
+    program_info *response_info = create_program_info(getpid(), "monitor", OK);
 
     char *fifo_name = malloc(sizeof(char) * 64);
-    sprintf(fifo_name, "tmp/%d.fifo", info->pid);
+    sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
     index = aux_add_request(requests_array, new_request);
-
 
     int fd;
     open_fifo(&fd, fifo_name, O_WRONLY);
@@ -82,8 +82,7 @@ int upsert_request(REQ **requests_array, program_info *info) {
     close(fd);
 
     free(fifo_name);
-  } 
-  else if (info->type == UPDATE) { 
+  } else if (info->type == UPDATE) {
     index = aux_find_request(requests_array, info->pid);
 
     if (index != -1) requests_array[index]->final_timestamp = info->timestamp;

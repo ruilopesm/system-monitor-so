@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 char *strdup(const char *s) {
@@ -31,15 +31,22 @@ program_info *create_program_info(int pid, char *name, enum request_type type) {
   return info;
 }
 
-char* create_fifo(int pid) {
-  char *fifo_name = malloc(sizeof(char) * 64);
-  sprintf(fifo_name, "tmp/%d.fifo", pid);
+char *create_fifo(int pid) {
+  const int MAX_SIZE = 64;
+  char *fifo_name = malloc(sizeof(char) * MAX_SIZE);
+
+  int bytes_written =
+      snprintf(fifo_name, MAX_SIZE, "tmp/%d.fifo", pid);  // NOLINT
+  if (bytes_written < 0 || bytes_written >= MAX_SIZE) {
+    perror("snprintf");
+    exit(EXIT_FAILURE);
+  }
 
   if (mkfifo(fifo_name, 0666) == -1) {
     perror("mkfifo");
     exit(EXIT_FAILURE);
   }
-  
+
   return fifo_name;
 }
 
@@ -68,4 +75,3 @@ int read_from_pipe(int fd, program_info *info) {
   }
   return read_bytes;
 }
-
