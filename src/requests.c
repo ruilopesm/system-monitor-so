@@ -97,3 +97,12 @@ int get_total_time(REQUESTS_ARRAY *requests_array, int index) {
   return requests_array->requests[index]->final_timestamp -
          requests_array->requests[index]->initial_timestamp;
 }
+
+void free_requests_array(REQUESTS_ARRAY *requests_array) {
+  for (int i = 0; i < requests_array->current_index; i++) {
+    free(requests_array->requests[i]);
+  }
+
+  free(requests_array->requests);
+  free(requests_array);
+}

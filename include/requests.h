@@ -31,4 +31,6 @@ int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
 int get_total_time(REQUESTS_ARRAY *requests_array, int index);
 
+void free_requests_array(REQUESTS_ARRAY *requests_array);
+
 #endif  // REQUESTS_H
