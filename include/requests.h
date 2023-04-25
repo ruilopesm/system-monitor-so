@@ -3,12 +3,32 @@
 
 #include "utils.h"
 
-typedef struct request REQ;
+typedef struct request {
+  int pid;
+  suseconds_t initial_timestamp;
+  suseconds_t final_timestamp;
+  char command[256];
+} REQUEST;
 
-REQ **create_requests_array(int size);
+typedef struct REQUESTS_ARRAY {
+  REQUEST **requests;
+  int current_index;
+  int capacity;
+} REQUESTS_ARRAY;
 
-int upsert_request(REQ **requests_array, program_info *info);
+REQUESTS_ARRAY *create_requests_array(int size);
 
-int get_total_time(REQ **requests_array, int index);
+REQUEST *create_request(
+    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
+    char *command
+);
+
+void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request);
+
+int find_request(REQUESTS_ARRAY *requests_array, int pid);
+
+int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+
+int get_total_time(REQUESTS_ARRAY *requests_array, int index);
 
 #endif  // REQUESTS_H
