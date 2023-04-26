@@ -14,7 +14,7 @@
 #include "utils.h"
 
 int main(void) {
-  REQ **requests_array = create_requests_array(100);
+  REQUESTS_ARRAY *requests_array = create_requests_array(100);
 
   if (mkfifo(MAIN_FIFO_NAME, 0666) ==
       -1) {  // 0666 stands for read/write permissions for all users
@@ -40,8 +40,8 @@ int main(void) {
 
   while (true) {
     // Read data from the named pipe
-    program_info *info = malloc(sizeof(program_info));
-    int read_bytes = read(fd, info, sizeof(program_info));
+    PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
+    int read_bytes = read(fd, info, sizeof(PROGRAM_INFO));
     if (read_bytes == -1) {
       perror("read");
       exit(EXIT_FAILURE);

@@ -13,62 +13,8 @@
 #include "parser.h"
 #include "utils.h"
 
-int execute_program(char *program_name, char **program, int monitor_fd) {
-  int pid = getpid();
-
-  char *fifo_name = create_fifo(pid);
-
-  int child_pid = fork();
-  if (child_pid == 0) {
-    // Child
-    program_info *execute_info = create_program_info(pid, program[0], NEW);
-
-    if (write(monitor_fd, execute_info, sizeof(program_info)) == -1) {
-      perror("write");
-      exit(EXIT_FAILURE);
-    }
-    free(execute_info);
-
-    if (execvp(program_name, program) == -1) {
-      perror("execlp");
-      exit(EXIT_FAILURE);
-    }
-
-    exit(EXIT_SUCCESS);
-  } else {
-    // Parent
-
-    // Wait for child to finish
-    int pid_fd;
-    open_fifo(&pid_fd, fifo_name, O_RDONLY);
-
-    int status;
-    if (wait(&status) > 0 && WIFEXITED(status)) {
-      program_info *done_info = create_program_info(pid, program[0], UPDATE);
-
-      // Read data from the named pipe
-      program_info *answer_info = malloc(sizeof(program_info));
-      read_from_pipe(pid_fd, answer_info);
-
-      if (answer_info->type == ERROR) {
-        perror("server error");
-        exit(EXIT_FAILURE);
-      }
-
-      // TODO: change the fd to the pid_fd
-      write_to_pipe(monitor_fd, done_info);
-
-      // Close the named pipe
-      close(monitor_fd);
-      free(done_info);
-      free(answer_info);
-      free(fifo_name);
-
-      exit(EXIT_SUCCESS);
-    }
-    exit(EXIT_FAILURE);
-  }
-}
+// Forward declarations
+int execute_program(char *program_name, char **program, int monitor_fd);
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -89,8 +35,7 @@ int main(int argc, char **argv) {
 
   if (!strcmp(option, "execute")) {
     char *argv_copy = strdup(argv[3]);
-    char **program =
-        parse_command(argv_copy);  // Because there should be an -u on argv[2]
+    char **program = parse_command(argv_copy);
     char *program_name = program[0];
 
     if (execute_program(program_name, program, fd) == -1) {
@@ -100,4 +45,62 @@ int main(int argc, char **argv) {
   }
 
   exit(EXIT_SUCCESS);
+}
+
+int execute_program(char *program_name, char **program, int monitor_fd) {
+  int pid = getpid();
+  char *fifo_name = create_fifo(pid);
+
+  int child_pid = fork();
+  if (child_pid == 0) {
+    // Child
+    PROGRAM_INFO *execute_info = create_program_info(pid, program[0], NEW);
+
+    if (write(monitor_fd, execute_info, sizeof(PROGRAM_INFO)) == -1) {
+      perror("write");
+      exit(EXIT_FAILURE);
+    }
+
+    free(execute_info);
+
+    if (execvp(program_name, program) == -1) {
+      perror("execlp");
+      exit(EXIT_FAILURE);
+    }
+
+    exit(EXIT_SUCCESS);
+  } else {
+    // Parent
+
+    // Wait for child to finish
+    int pid_fd;
+    open_fifo(&pid_fd, fifo_name, O_RDONLY);
+
+    int status;
+    if (wait(&status) > 0 && WIFEXITED(status)) {
+      PROGRAM_INFO *done_info = create_program_info(pid, program[0], UPDATE);
+
+      // Read data from the named pipe
+      PROGRAM_INFO *answer_info = malloc(sizeof(PROGRAM_INFO));
+      read_from_fd(pid_fd, answer_info);
+
+      if (answer_info->type == ERROR) {
+        perror("server error");
+        exit(EXIT_FAILURE);
+      }
+
+      // TODO: change the fd to the pid_fd
+      write_to_fd(monitor_fd, done_info);
+
+      // Close the named pipe
+      close(monitor_fd);
+      free(done_info);
+      free(answer_info);
+      free(fifo_name);
+
+      exit(EXIT_SUCCESS);
+    }
+
+    exit(EXIT_FAILURE);
+  }
 }
