@@ -8,25 +8,16 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-char *strdup(const char *s) {
-  char *ptr = malloc(strlen(s) + 1);
-  if (ptr == NULL) return NULL;
-
-  strcpy(ptr, s);  // NOLINT
-
-  return ptr;
-}
-
-program_info *create_program_info(int pid, char *name, enum request_type type) {
+PROGRAM_INFO *create_program_info(int pid, char *name, enum request_type type) {
   struct timeval tv;
   gettimeofday(&tv, NULL);
 
-  program_info *info = malloc(sizeof(program_info));
+  PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
   info->pid = pid;
-  strcpy(info->name, name);  // NOLINT
   info->timestamp = tv.tv_usec;
   info->type = type;
+  strcpy(info->name, name);  // NOLINT
 
   return info;
 }
@@ -52,26 +43,40 @@ char *create_fifo(int pid) {
 
 void open_fifo(int *fd, char *fifo_name, int flags) {
   *fd = open(fifo_name, flags);
+
   if (*fd == -1) {
     perror("open");
     exit(EXIT_FAILURE);
   }
 }
 
-int write_to_pipe(int fd, program_info *info) {
-  int write_bytes = write(fd, info, sizeof(program_info));
+int write_to_fd(int fd, PROGRAM_INFO *info) {
+  int write_bytes = write(fd, info, sizeof(PROGRAM_INFO));
+
   if (write_bytes == -1) {
     perror("write");
     exit(EXIT_FAILURE);
   }
+
   return write_bytes;
 }
 
-int read_from_pipe(int fd, program_info *info) {
-  int read_bytes = read(fd, info, sizeof(program_info));
+int read_from_fd(int fd, PROGRAM_INFO *info) {
+  int read_bytes = read(fd, info, sizeof(PROGRAM_INFO));
+
   if (read_bytes == -1 || info->type == ERROR) {
     perror("read");
     exit(EXIT_FAILURE);
   }
+
   return read_bytes;
+}
+
+char *strdup(const char *s) {
+  char *ptr = malloc(strlen(s) + 1);
+  if (ptr == NULL) return NULL;
+
+  strcpy(ptr, s);  // NOLINT
+
+  return ptr;
 }
