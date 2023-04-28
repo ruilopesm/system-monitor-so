@@ -62,27 +62,29 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
   return -1;
 }
 
-int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
-  int index = find_request(requests_array, info->pid);
+int upsert_request(REQUESTS_ARRAY *requests_array, REQUEST_DATA *request_data) {
+  PROGRAM_INFO info = request_data->data.info;
+  int index = find_request(requests_array, info.pid);
 
-  if (info->type == NEW) {
+  if (request_data->type == NEW) {
     REQUEST *new_request =
-        create_request(info->pid, info->timestamp, 0, info->name);
+        create_request(info.pid, info.timestamp, 0, info.name);
     append_request(requests_array, new_request);
 
     PROGRAM_INFO *response_info = create_program_info(getpid(), "monitor", OK);
+    REQUEST_DATA *response_data = create_request_data(UPDATE, response_info);
 
     char *fifo_name = malloc(sizeof(char) * 32);
-    sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
+    sprintf(fifo_name, "tmp/%d.fifo", info.pid);  // NOLINT
 
     int fd;
     open_fifo(&fd, fifo_name, O_WRONLY);
-    write_to_fd(fd, response_info);
+    write_to_fd(fd, response_data);
     close(fd);
     free(fifo_name);
-  } else if (info->type == UPDATE) {
+  } else if (request_data->type == UPDATE) {
     if (index != -1) {
-      requests_array->requests[index]->final_timestamp = info->timestamp;
+      requests_array->requests[index]->final_timestamp = info.timestamp;
     }
 
     int total_time = get_total_time(requests_array, index);

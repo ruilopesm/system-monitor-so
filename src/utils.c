@@ -22,6 +22,15 @@ PROGRAM_INFO *create_program_info(int pid, char *name, enum request_type type) {
   return info;
 }
 
+REQUEST_DATA *create_request_data(enum request_type type, void *data) {
+  REQUEST_DATA *request_data = malloc(sizeof(REQUEST_DATA));
+
+  request_data->type = type;
+  request_data->data.info = *(PROGRAM_INFO *)data;
+
+  return request_data;
+}
+
 char *create_fifo(int pid) {
   const int MAX_SIZE = 64;
   char *fifo_name = malloc(sizeof(char) * MAX_SIZE);
@@ -50,8 +59,8 @@ void open_fifo(int *fd, char *fifo_name, int flags) {
   }
 }
 
-int write_to_fd(int fd, PROGRAM_INFO *info) {
-  int write_bytes = write(fd, info, sizeof(PROGRAM_INFO));
+int write_to_fd(int fd, REQUEST_DATA *request_data) {
+  int write_bytes = write(fd, request_data, sizeof(PROGRAM_INFO));
 
   if (write_bytes == -1) {
     perror("write");
@@ -61,10 +70,10 @@ int write_to_fd(int fd, PROGRAM_INFO *info) {
   return write_bytes;
 }
 
-int read_from_fd(int fd, PROGRAM_INFO *info) {
-  int read_bytes = read(fd, info, sizeof(PROGRAM_INFO));
+int read_from_fd(int fd, REQUEST_DATA *request_data) {
+  int read_bytes = read(fd, request_data, sizeof(REQUEST_DATA));
 
-  if (read_bytes == -1 || info->type == ERROR) {
+  if (read_bytes == -1 || request_data->type == ERROR) {
     perror("read");
     exit(EXIT_FAILURE);
   }
