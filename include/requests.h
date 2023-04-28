@@ -18,10 +18,7 @@ typedef struct REQUESTS_ARRAY {
 
 REQUESTS_ARRAY *create_requests_array(int size);
 
-REQUEST *create_request(
-    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
-    char *command
-);
+REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command);
 
 void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request);
 

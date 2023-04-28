@@ -20,7 +20,9 @@ typedef struct program_info {
   suseconds_t timestamp;
 } PROGRAM_INFO;
 
-PROGRAM_INFO *create_program_info(int pid, char *command, REQUEST_TYPE type);
+PROGRAM_INFO *create_program_info(
+    int pid, char *command, suseconds_t timestamp, REQUEST_TYPE type
+);
 
 char *create_fifo(int pid);
 
@@ -31,5 +33,9 @@ int write_to_fd(int fd, PROGRAM_INFO *info);
 int read_from_fd(int fd, PROGRAM_INFO *info);
 
 char *strdup(const char *s);
+
+int timeval_subtract(
+    struct timeval *result, struct timeval *x, struct timeval *y
+);
 
 #endif  // UTILS_H
