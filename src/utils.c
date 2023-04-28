@@ -8,14 +8,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-PROGRAM_INFO *create_program_info(int pid, char *name, enum request_type type) {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-
+PROGRAM_INFO *create_program_info(
+    int pid, char *name, suseconds_t timestamp, REQUEST_TYPE type
+) {
   PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
   info->pid = pid;
-  info->timestamp = tv.tv_usec;
+  info->timestamp = timestamp;
   info->type = type;
   strcpy(info->name, name);  // NOLINT
 
@@ -79,4 +78,31 @@ char *strdup(const char *s) {
   strcpy(ptr, s);  // NOLINT
 
   return ptr;
+}
+
+// Source: https://stackoverflow.com/questions/15846762/timeval-subtract-explanation
+int timeval_subtract(
+    struct timeval *result, struct timeval *x, struct timeval *y
+) {
+  struct timeval yy = *y;
+  y = &yy;
+
+  // Perform the carry for the later subtraction by updating y
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
+  }
+
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+
+  // Return 1 if result is negative
+  return x->tv_sec < y->tv_sec;
 }
