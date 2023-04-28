@@ -11,80 +11,37 @@
 
 #include "utils.h"
 
-REQUESTS_ARRAY *create_requests_array(int size) {
-  REQUESTS_ARRAY *requests_array = malloc(sizeof(REQUESTS_ARRAY));
-
-  requests_array->requests = malloc(sizeof(REQUEST *) * size);
-  requests_array->current_index = 0;
-  requests_array->capacity = size;
-
-  return requests_array;
-}
-
-REQUEST *create_request(
-    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
-    char *command
-) {
-  REQUEST *request = malloc(sizeof(REQUEST));
-
-  request->pid = pid;
-  request->initial_timestamp = initial_timestamp;
-  request->final_timestamp = final_timestamp;
-  strcpy(request->command, command);  // NOLINT
-
-  return request;
-}
-
-void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request) {
-  if (requests_array->current_index == requests_array->capacity) {
-    requests_array->capacity *= 2;
-    requests_array->requests = realloc(
-        requests_array->requests, sizeof(REQUEST *) * requests_array->capacity
-    );
-
-    if (requests_array->requests == NULL) {
-      perror("realloc");
-      exit(EXIT_FAILURE);
-    }
+int deal_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
+  if (info->type == NEW || info->type == UPDATE) {
+    return upsert_request(requests_array, info);
+  } else if (info->type == STATUS) {
+    return status_request(requests_array, info);
+  } else {
+    return -1;
   }
-
-  requests_array->requests[requests_array->current_index] = request;
-  requests_array->current_index++;
 }
 
-int find_request(REQUESTS_ARRAY *requests_array, int pid) {
-  for (int i = 0; i < requests_array->current_index; i++) {
-    if (requests_array->requests[i]->pid == pid) {
-      return i;
-    }
-  }
+int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
+  int index = find_request(requests_array, info->pid);
 
-  return -1;
-}
-
-int upsert_request(REQUESTS_ARRAY *requests_array, REQUEST_DATA *request_data) {
-  PROGRAM_INFO info = request_data->data.info;
-  int index = find_request(requests_array, info.pid);
-
-  if (request_data->type == NEW) {
+  if (info->type == NEW) {
     REQUEST *new_request =
-        create_request(info.pid, info.timestamp, 0, info.name);
+        create_request(info->pid, info->timestamp, 0, info->name);
     append_request(requests_array, new_request);
 
-    PROGRAM_INFO *response_info = create_program_info(getpid(), "monitor", OK);
-    REQUEST_DATA *response_data = create_request_data(UPDATE, response_info);
+    PROGRAM_INFO *response_info = create_program_info(getpid(), "monitor", UPDATE);
 
     char *fifo_name = malloc(sizeof(char) * 32);
-    sprintf(fifo_name, "tmp/%d.fifo", info.pid);  // NOLINT
+    sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
     int fd;
     open_fifo(&fd, fifo_name, O_WRONLY);
-    write_to_fd(fd, response_data);
+    write_to_fd(fd, response_info, sizeof(PROGRAM_INFO));
     close(fd);
     free(fifo_name);
-  } else if (request_data->type == UPDATE) {
+  } else if (info->type == UPDATE) {
     if (index != -1) {
-      requests_array->requests[index]->final_timestamp = info.timestamp;
+      requests_array->requests[index]->final_timestamp = info->timestamp;
     }
 
     int total_time = get_total_time(requests_array, index);
@@ -95,16 +52,25 @@ int upsert_request(REQUESTS_ARRAY *requests_array, REQUEST_DATA *request_data) {
   return index;
 }
 
-int get_total_time(REQUESTS_ARRAY *requests_array, int index) {
-  return requests_array->requests[index]->final_timestamp -
-         requests_array->requests[index]->initial_timestamp;
-}
+int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
+  
+  char *fifo_name = malloc(sizeof(char) * 32);
+  sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
-void free_requests_array(REQUESTS_ARRAY *requests_array) {
+  int fd;
+  open_fifo(&fd, fifo_name, O_WRONLY);
+
   for (int i = 0; i < requests_array->current_index; i++) {
-    free(requests_array->requests[i]);
+    REQUEST *request = requests_array->requests[i];
+
+    if (request->final_timestamp == 0)
+      write_to_fd(fd, request, sizeof(REQUEST));
   }
 
-  free(requests_array->requests);
-  free(requests_array);
+  free(fifo_name);
+  close(fd);
+
+  printf("------------------------\n");
+  return 0;
 }
+

@@ -15,6 +15,7 @@
 
 // Forward declarations
 int execute_program(char *program_name, char **program, int monitor_fd);
+int execute_status(int fd);
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -43,6 +44,12 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   }
+  else if (!strcmp(option, "status")) {
+    if (execute_status(fd) == -1) {
+      perror("execute_status");
+      exit(EXIT_FAILURE);
+    }
+  }
 
   exit(EXIT_SUCCESS);
 }
@@ -55,15 +62,13 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *execute_info = create_program_info(pid, program[0], NEW);
-    REQUEST_DATA *request_data = create_request_data(NEW, execute_info);
 
-    if (write(monitor_fd, request_data, sizeof(PROGRAM_INFO)) == -1) {
+    if (write(monitor_fd, execute_info, sizeof(PROGRAM_INFO)) == -1) {
       perror("write");
       exit(EXIT_FAILURE);
     }
 
     free(execute_info);
-    free(request_data);
 
     if (execvp(program_name, program) == -1) {
       perror("execlp");
@@ -81,26 +86,24 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
     int status;
     if (wait(&status) > 0 && WIFEXITED(status)) {
       PROGRAM_INFO *done_info = create_program_info(pid, program[0], UPDATE);
-      REQUEST_DATA *done_data = create_request_data(UPDATE, done_info);
+      /* REQUEST_DATA *done_data = create_request_data(UPDATE, done_info); */
 
       // Read data from the named pipe
-      REQUEST_DATA *answer_data = malloc(sizeof(REQUEST_DATA));
-      read_from_fd(pid_fd, answer_data);
+      PROGRAM_INFO *answer_info = malloc(sizeof(PROGRAM_INFO));
+      read_from_fd(pid_fd, answer_info, sizeof(PROGRAM_INFO));
 
-      PROGRAM_INFO answer_info = answer_data->data.info;
 
-      if (answer_info.type == ERROR) {
+      if (answer_info->type == ERROR) {
         perror("server error");
         exit(EXIT_FAILURE);
       }
 
       // TODO: change the fd to the pid_fd
-      write_to_fd(monitor_fd, done_data);
+      write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO));
 
       // Close the named pipe
       close(monitor_fd);
       free(done_info);
-      free(done_data);
       free(fifo_name);
 
       exit(EXIT_SUCCESS);
@@ -108,4 +111,29 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
 
     exit(EXIT_FAILURE);
   }
+}
+
+int execute_status(int fd) {
+  int pid = getpid();
+  char *fifo_name = create_fifo(pid);
+
+  PROGRAM_INFO *info = create_program_info(pid, "status", STATUS);
+
+  write_to_fd(fd, info, sizeof(PROGRAM_INFO));
+
+  int pid_fd;
+  open_fifo(&pid_fd, fifo_name, O_RDONLY);
+
+  REQUEST *answer_data = malloc(sizeof(REQUEST));
+  // Read data from the named pipe
+  while (read_from_fd(pid_fd, answer_data, sizeof(REQUEST)) > 0) {
+    printf("pid: %d\n", answer_data->pid);
+  }
+
+  free(info);
+  free(answer_data);
+  free(fifo_name);
+  close(pid_fd);
+
+  exit(EXIT_SUCCESS);
 }

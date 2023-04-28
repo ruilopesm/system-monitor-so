@@ -9,6 +9,7 @@
 typedef enum request_type {
   NEW,
   UPDATE,
+  STATUS,
   ERROR,
   OK
 } REQUEST_TYPE;
@@ -33,28 +34,31 @@ typedef struct program_info {
   suseconds_t timestamp;
 } PROGRAM_INFO;
 
-typedef struct request_data {
-  enum request_type type;
-  union data {
-    PROGRAM_INFO info;
-    REQUESTS_ARRAY requests_array;
-  } data;
-} REQUEST_DATA;
-
-// TODO: make a create_request_data function -> done
-// TODO: apply the function above to all the functions that currently create a PROGRAM_INFO
-PROGRAM_INFO *create_program_info(int pid, char *command, REQUEST_TYPE type);
-
-REQUEST_DATA *create_request_data(enum request_type type, void *data);
+PROGRAM_INFO *create_program_info(int pid, char *command, enum request_type type);
 
 char *create_fifo(int pid);
 
 void open_fifo(int *fd, char *fifo_name, int flags);
 
-int write_to_fd(int fd, REQUEST_DATA *data);
+int write_to_fd(int fd, void *info, int size);
 
-int read_from_fd(int fd, REQUEST_DATA *data);
+int read_from_fd(int fd, void *info, int size);
 
 char *strdup(const char *s);
+
+REQUESTS_ARRAY *create_requests_array(int size);
+
+REQUEST *create_request(
+    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
+    char *command
+);
+
+void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request);
+
+int find_request(REQUESTS_ARRAY *requests_array, int pid);
+
+int get_total_time(REQUESTS_ARRAY *requests_array, int index);
+
+void free_requests_array(REQUESTS_ARRAY *requests_array);
 
 #endif  // UTILS_H

@@ -14,21 +14,12 @@ PROGRAM_INFO *create_program_info(int pid, char *name, enum request_type type) {
 
   PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
+  info->type = type;
   info->pid = pid;
   info->timestamp = tv.tv_usec;
-  info->type = type;
   strcpy(info->name, name);  // NOLINT
 
   return info;
-}
-
-REQUEST_DATA *create_request_data(enum request_type type, void *data) {
-  REQUEST_DATA *request_data = malloc(sizeof(REQUEST_DATA));
-
-  request_data->type = type;
-  request_data->data.info = *(PROGRAM_INFO *)data;
-
-  return request_data;
 }
 
 char *create_fifo(int pid) {
@@ -59,8 +50,8 @@ void open_fifo(int *fd, char *fifo_name, int flags) {
   }
 }
 
-int write_to_fd(int fd, REQUEST_DATA *request_data) {
-  int write_bytes = write(fd, request_data, sizeof(PROGRAM_INFO));
+int write_to_fd(int fd, void *info, int size) {
+  int write_bytes = write(fd, info, size);
 
   if (write_bytes == -1) {
     perror("write");
@@ -70,10 +61,10 @@ int write_to_fd(int fd, REQUEST_DATA *request_data) {
   return write_bytes;
 }
 
-int read_from_fd(int fd, REQUEST_DATA *request_data) {
-  int read_bytes = read(fd, request_data, sizeof(REQUEST_DATA));
+int read_from_fd(int fd, void *info, int size) {
+  int read_bytes = read(fd, info, size);
 
-  if (read_bytes == -1 || request_data->type == ERROR) {
+  if (read_bytes == -1) {
     perror("read");
     exit(EXIT_FAILURE);
   }
@@ -88,4 +79,69 @@ char *strdup(const char *s) {
   strcpy(ptr, s);  // NOLINT
 
   return ptr;
+}
+
+REQUESTS_ARRAY *create_requests_array(int size) {
+  REQUESTS_ARRAY *requests_array = malloc(sizeof(REQUESTS_ARRAY));
+
+  requests_array->requests = malloc(sizeof(REQUEST *) * size);
+  requests_array->current_index = 0;
+  requests_array->capacity = size;
+
+  return requests_array;
+}
+
+REQUEST *create_request(
+    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
+    char *command
+) {
+  REQUEST *request = malloc(sizeof(REQUEST));
+
+  request->pid = pid;
+  request->initial_timestamp = initial_timestamp;
+  request->final_timestamp = final_timestamp;
+  strcpy(request->command, command);  // NOLINT
+
+  return request;
+}
+
+void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request) {
+  if (requests_array->current_index == requests_array->capacity) {
+    requests_array->capacity *= 2;
+    requests_array->requests = realloc(
+        requests_array->requests, sizeof(REQUEST *) * requests_array->capacity
+    );
+
+    if (requests_array->requests == NULL) {
+      perror("realloc");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  requests_array->requests[requests_array->current_index] = request;
+  requests_array->current_index++;
+}
+
+int find_request(REQUESTS_ARRAY *requests_array, int pid) {
+  for (int i = 0; i < requests_array->current_index; i++) {
+    if (requests_array->requests[i]->pid == pid) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+int get_total_time(REQUESTS_ARRAY *requests_array, int index) {
+  return requests_array->requests[index]->final_timestamp -
+         requests_array->requests[index]->initial_timestamp;
+}
+
+void free_requests_array(REQUESTS_ARRAY *requests_array) {
+  for (int i = 0; i < requests_array->current_index; i++) {
+    free(requests_array->requests[i]);
+  }
+
+  free(requests_array->requests);
+  free(requests_array);
 }

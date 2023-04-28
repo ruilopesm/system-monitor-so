@@ -40,25 +40,22 @@ int main(void) {
 
   while (true) {
     // Read data from the named pipe
-    /* PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO)); */
-    REQUEST_DATA *request_data = malloc(sizeof(REQUEST_DATA));
-    int read_bytes = read(fd, request_data, sizeof(REQUEST_DATA));
+    PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
+    int read_bytes = read(fd, info, sizeof(PROGRAM_INFO));
     if (read_bytes == -1) {
       perror("read");
       exit(EXIT_FAILURE);
     }
 
-    PROGRAM_INFO info = request_data->data.info;
-
     if (read_bytes != 0) {
-      printf("PID %d: %s\n", info.pid, info.name);
-      printf("Timestamp: %ld\n", info.timestamp);
-      printf("Type: %d\n", request_data->type);
+      printf("PID %d: %s\n", info->pid, info->name);
+      printf("Timestamp: %ld\n", info->timestamp);
+      printf("Type: %d\n", info->type);
 
-      upsert_request(requests_array, request_data);
+      deal_request(requests_array, info);
     }
 
-    free(request_data);
+    free(info);
   }
 
   // Close the named pipes
