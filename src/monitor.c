@@ -47,10 +47,8 @@ int main(void) {
       exit(EXIT_FAILURE);
     }
 
-    if (read_bytes != 0) {
-      printf("PID %d: %s\n", info->pid, info->name);
-      printf("Timestamp: %ld\n", info->timestamp);
-      printf("Type: %d\n", info->type);
+    if (read_bytes != 0 && info->type == NEW) {
+      printf("Received program %s with PID %d\n", info->name, info->pid);
 
       upsert_request(requests_array, info);
     }

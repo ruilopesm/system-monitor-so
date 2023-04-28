@@ -8,6 +8,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "parser.h"
@@ -15,6 +16,7 @@
 
 // Forward declarations
 int execute_program(char *program_name, char **program, int monitor_fd);
+// End forward declarations
 
 int main(int argc, char **argv) {
   if (argc < 2) {
@@ -51,10 +53,15 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
   int pid = getpid();
   char *fifo_name = create_fifo(pid);
 
+  struct timeval start_time;
+  gettimeofday(&start_time, NULL);
+  struct timeval final_time;
+
   int child_pid = fork();
   if (child_pid == 0) {
     // Child
-    PROGRAM_INFO *execute_info = create_program_info(pid, program[0], NEW);
+    PROGRAM_INFO *execute_info =
+        create_program_info(pid, program[0], start_time.tv_usec, NEW);
 
     if (write(monitor_fd, execute_info, sizeof(PROGRAM_INFO)) == -1) {
       perror("write");
@@ -71,16 +78,18 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
     exit(EXIT_SUCCESS);
   } else {
     // Parent
-
     // Wait for child to finish
     int pid_fd;
     open_fifo(&pid_fd, fifo_name, O_RDONLY);
 
     int status;
     if (wait(&status) > 0 && WIFEXITED(status)) {
-      PROGRAM_INFO *done_info = create_program_info(pid, program[0], UPDATE);
+      // Child finished
+      gettimeofday(&final_time, NULL);
+      PROGRAM_INFO *done_info =
+          create_program_info(pid, program[0], final_time.tv_usec, UPDATE);
 
-      // Read data from the named pipe
+      // Ensure server answered with OK
       PROGRAM_INFO *answer_info = malloc(sizeof(PROGRAM_INFO));
       read_from_fd(pid_fd, answer_info);
 
@@ -90,7 +99,12 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
       }
 
       // TODO: change the fd to the pid_fd
+      // Write the final timestamp to the monitor
       write_to_fd(monitor_fd, done_info);
+
+      struct timeval diff;
+      timeval_subtract(&diff, &final_time, &start_time);
+      printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
 
       // Close the named pipe
       close(monitor_fd);

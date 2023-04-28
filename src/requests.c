@@ -21,15 +21,12 @@ REQUESTS_ARRAY *create_requests_array(int size) {
   return requests_array;
 }
 
-REQUEST *create_request(
-    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
-    char *command
-) {
+REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command) {
   REQUEST *request = malloc(sizeof(REQUEST));
 
   request->pid = pid;
   request->initial_timestamp = initial_timestamp;
-  request->final_timestamp = final_timestamp;
+  request->final_timestamp = 0;
   strcpy(request->command, command);  // NOLINT
 
   return request;
@@ -67,35 +64,33 @@ int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
 
   if (info->type == NEW) {
     REQUEST *new_request =
-        create_request(info->pid, info->timestamp, 0, info->name);
+        create_request(info->pid, info->timestamp, info->name);
     append_request(requests_array, new_request);
 
-    PROGRAM_INFO *response_info = create_program_info(getpid(), "monitor", OK);
-
+    PROGRAM_INFO *response_info =
+        create_program_info(getpid(), "monitor", 0, OK);
     char *fifo_name = malloc(sizeof(char) * 32);
     sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
     int fd;
     open_fifo(&fd, fifo_name, O_WRONLY);
+
+    // Write data to the named pipe
     write_to_fd(fd, response_info);
+
     close(fd);
     free(fifo_name);
+
   } else if (info->type == UPDATE) {
     if (index != -1) {
       requests_array->requests[index]->final_timestamp = info->timestamp;
+    } else {
+      perror("update");
+      exit(EXIT_FAILURE);
     }
-
-    int total_time = get_total_time(requests_array, index);
-    printf("Total time: %d\n", total_time);
-    printf("------------------------\n");
   }
 
   return index;
-}
-
-int get_total_time(REQUESTS_ARRAY *requests_array, int index) {
-  return requests_array->requests[index]->final_timestamp -
-         requests_array->requests[index]->initial_timestamp;
 }
 
 void free_requests_array(REQUESTS_ARRAY *requests_array) {
