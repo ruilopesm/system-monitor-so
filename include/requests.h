@@ -3,9 +3,11 @@
 
 #include "utils.h"
 
-int deal_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+int deal_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type);
 
-int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+int insert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+
+int update_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
 int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
