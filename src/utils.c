@@ -9,14 +9,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-PROGRAM_INFO *create_program_info(int pid, char *name) {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-
+PROGRAM_INFO *create_program_info(
+    int pid, char *name, suseconds_t timestamp
+) {
   PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
   info->pid = pid;
-  info->timestamp = tv.tv_usec;
+  info->timestamp = timestamp;
   strcpy(info->name, name);  // NOLINT
 
   return info;
@@ -112,67 +111,34 @@ char *strdup(const char *s) {
   return ptr;
 }
 
-REQUESTS_ARRAY *create_requests_array(int size) {
-  REQUESTS_ARRAY *requests_array = malloc(sizeof(REQUESTS_ARRAY));
-
-  requests_array->requests = malloc(sizeof(REQUEST *) * size);
-  requests_array->current_index = 0;
-  requests_array->capacity = size;
-
-  return requests_array;
-}
-
-REQUEST *create_request(
-    int pid, suseconds_t initial_timestamp, suseconds_t final_timestamp,
-    char *command
-) {
-  REQUEST *request = malloc(sizeof(REQUEST));
-
-  request->pid = pid;
-  request->initial_timestamp = initial_timestamp;
-  request->final_timestamp = final_timestamp;
-  strcpy(request->command, command);  // NOLINT
-
-  return request;
-}
-
-void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request) {
-  if (requests_array->current_index == requests_array->capacity) {
-    requests_array->capacity *= 2;
-    requests_array->requests = realloc(
-        requests_array->requests, sizeof(REQUEST *) * requests_array->capacity
-    );
-
-    if (requests_array->requests == NULL) {
-      perror("realloc");
-      exit(EXIT_FAILURE);
-    }
-  }
-
-  requests_array->requests[requests_array->current_index] = request;
-  requests_array->current_index++;
-}
-
-int find_request(REQUESTS_ARRAY *requests_array, int pid) {
-  for (int i = 0; i < requests_array->current_index; i++) {
-    if (requests_array->requests[i]->pid == pid) {
-      return i;
-    }
-  }
-
-  return -1;
-}
-
 int get_total_time(REQUESTS_ARRAY *requests_array, int index) {
   return requests_array->requests[index]->final_timestamp -
          requests_array->requests[index]->initial_timestamp;
 }
 
-void free_requests_array(REQUESTS_ARRAY *requests_array) {
-  for (int i = 0; i < requests_array->current_index; i++) {
-    free(requests_array->requests[i]);
+// Source: https://stackoverflow.com/questions/15846762/timeval-subtract-explanation
+int timeval_subtract(
+    struct timeval *result, struct timeval *x, struct timeval *y
+) {
+  struct timeval yy = *y;
+  y = &yy;
+
+  // Perform the carry for the later subtraction by updating y
+  if (x->tv_usec < y->tv_usec) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000 + 1;
+    y->tv_usec -= 1000000 * nsec;
+    y->tv_sec += nsec;
   }
 
-  free(requests_array->requests);
-  free(requests_array);
+  if (x->tv_usec - y->tv_usec > 1000000) {
+    int nsec = (y->tv_usec - x->tv_usec) / 1000000;
+    y->tv_usec += 1000000 * nsec;
+    y->tv_sec -= nsec;
+  }
+
+  result->tv_sec = x->tv_sec - y->tv_sec;
+  result->tv_usec = x->tv_usec - y->tv_usec;
+
+  // Return 1 if result is negative
+  return x->tv_sec < y->tv_sec;
 }

@@ -43,9 +43,6 @@ int main(void) {
     PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
     enum request_type type = read_from_fd(fd, info, sizeof(PROGRAM_INFO));
 
-    printf("PID %d: %s\n", info->pid, info->name);
-    printf("Timestamp: %ld\n", info->timestamp);
-
     printf("Type: %d\n", type);
     deal_request(requests_array, info, type);
 
