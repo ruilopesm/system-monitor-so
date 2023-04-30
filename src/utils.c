@@ -9,9 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-PROGRAM_INFO *create_program_info(
-    int pid, char *name, suseconds_t timestamp
-) {
+PROGRAM_INFO *create_program_info(int pid, char *name, suseconds_t timestamp) {
   PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
   info->pid = pid;
@@ -109,11 +107,6 @@ char *strdup(const char *s) {
   strcpy(ptr, s);  // NOLINT
 
   return ptr;
-}
-
-int get_total_time(REQUESTS_ARRAY *requests_array, int index) {
-  return requests_array->requests[index]->final_timestamp -
-         requests_array->requests[index]->initial_timestamp;
 }
 
 // Source: https://stackoverflow.com/questions/15846762/timeval-subtract-explanation

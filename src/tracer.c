@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "parser.h"
+#include "requests.h"
 #include "utils.h"
 
 // Forward declarations
@@ -134,7 +135,7 @@ int execute_status(int fd) {
 
   REQUEST *answer_data = malloc(sizeof(REQUEST));
   // Read data from the named pipe
-  while (read_from_fd(pid_fd, answer_data, sizeof(REQUEST)) > 0) {
+  while (read_from_fd(pid_fd, answer_data, sizeof(REQUEST)) != DONE) {
     printf("pid: %d\n", answer_data->pid);
   }
 

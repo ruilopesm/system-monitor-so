@@ -12,7 +12,8 @@ typedef enum request_type {
   UPDATE,
   STATUS,
   ERROR,
-  OK
+  OK,
+  DONE
 } REQUEST_TYPE;
 
 typedef struct program_info {
@@ -26,13 +27,9 @@ typedef struct header {
   size_t size;
 } HEADER;
 
-PROGRAM_INFO *create_program_info(
-    int pid, char *name, suseconds_t timestamp
-);
+PROGRAM_INFO *create_program_info(int pid, char *name, suseconds_t timestamp);
 
-HEADER *create_header(
-    enum request_type type, size_t size
-);
+HEADER *create_header(enum request_type type, size_t size);
 
 char *create_fifo(int pid);
 

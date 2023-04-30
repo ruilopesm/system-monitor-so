@@ -32,7 +32,6 @@ REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command) {
   return request;
 }
 
-
 void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request) {
   if (requests_array->current_index == requests_array->capacity) {
     requests_array->capacity *= 2;
@@ -45,17 +44,16 @@ void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request) {
       exit(EXIT_FAILURE);
     }
   }
+
+  requests_array->requests[requests_array->current_index] = request;
+  requests_array->current_index++;
 }
 
 int insert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   int index = find_request(requests_array, info->pid);
 
-  REQUEST *new_request =
-      create_request(info->pid, info->timestamp, info->name);
+  REQUEST *new_request = create_request(info->pid, info->timestamp, info->name);
   append_request(requests_array, new_request);
-
-  /* PROGRAM_INFO *response_info = */
-  /*     create_program_info(getpid(), "monitor", ); */
 
   char *fifo_name = malloc(sizeof(char) * 32);
   sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
@@ -77,10 +75,6 @@ int update_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
     requests_array->requests[index]->final_timestamp = info->timestamp;
   }
 
-  int total_time = get_total_time(requests_array, index);
-  printf("Total time: %d\n", total_time);
-  printf("------------------------\n");
-
   return index;
 }
 
@@ -100,20 +94,18 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
   return -1;
 }
 
-
-int deal_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type) {
+int deal_request(
+    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type
+) {
   if (type == NEW) {
     printf("New request\n");
     return insert_request(requests_array, info);
-  } 
-  else if (type == UPDATE) {
+  } else if (type == UPDATE) {
     printf("Update request\n");
     return update_request(requests_array, info);
-  } 
-  else if (type == STATUS) {
+  } else if (type == STATUS) {
     return status_request(requests_array, info);
-  } 
-  else {
+  } else {
     perror("Invalid request type");
     exit(EXIT_FAILURE);
   }
@@ -132,6 +124,9 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
     if (request->final_timestamp == 0)
       write_to_fd(fd, request, sizeof(REQUEST), STATUS);
   }
+
+  // Send DONE to inform client that all requests were sent
+  write_to_fd(fd, NULL, 0, DONE);
 
   free(fifo_name);
   close(fd);
