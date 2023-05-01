@@ -49,6 +49,41 @@ void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request) {
   requests_array->current_index++;
 }
 
+int insert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
+  int index = find_request(requests_array, info->pid);
+
+  REQUEST *new_request = create_request(info->pid, info->timestamp, info->name);
+  append_request(requests_array, new_request);
+
+  char *fifo_name = malloc(sizeof(char) * 32);
+  sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
+
+  int fd;
+  open_fifo(&fd, fifo_name, O_WRONLY);
+  write_to_fd(fd, NULL, 0, OK);
+
+  close(fd);
+  free(fifo_name);
+
+  return index;
+}
+
+int update_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
+  int index = find_request(requests_array, info->pid);
+
+  if (index != -1) {
+    requests_array->requests[index]->final_timestamp = info->timestamp;
+  }
+
+  return index;
+}
+
+void free_requests_array(REQUESTS_ARRAY *requests_array) {
+  for (int i = 0; i < requests_array->current_index; i++) {
+    free(requests_array->requests[i]);
+  }
+}
+
 int find_request(REQUESTS_ARRAY *requests_array, int pid) {
   for (int i = 0; i < requests_array->current_index; i++) {
     if (requests_array->requests[i]->pid == pid) {
@@ -59,45 +94,51 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
   return -1;
 }
 
-int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
-  int index = find_request(requests_array, info->pid);
+int deal_request(
+    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type
+) {
+  int return_value = 0;
 
-  if (info->type == NEW) {
-    REQUEST *new_request =
-        create_request(info->pid, info->timestamp, info->name);
-    append_request(requests_array, new_request);
-
-    PROGRAM_INFO *response_info =
-        create_program_info(getpid(), "monitor", 0, OK);
-    char *fifo_name = malloc(sizeof(char) * 32);
-    sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
-
-    int fd;
-    open_fifo(&fd, fifo_name, O_WRONLY);
-
-    // Write data to the named pipe
-    write_to_fd(fd, response_info);
-
-    close(fd);
-    free(fifo_name);
-
-  } else if (info->type == UPDATE) {
-    if (index != -1) {
-      requests_array->requests[index]->final_timestamp = info->timestamp;
-    } else {
-      perror("update");
-      exit(EXIT_FAILURE);
+  if (type == NEW) {
+    printf("New request\n");
+    return_value = insert_request(requests_array, info);
+  } else if (type == UPDATE) {
+    printf("Update request\n");
+    return_value = update_request(requests_array, info);
+  } else if (type == STATUS) {
+    int pid = fork();
+    if (pid == 0) {
+      status_request(requests_array, info);
+      exit(EXIT_SUCCESS);
     }
+  } else {
+    perror("Invalid request type");
+    exit(EXIT_FAILURE);
   }
 
-  return index;
+  return return_value;
 }
 
-void free_requests_array(REQUESTS_ARRAY *requests_array) {
+int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
+  char *fifo_name = malloc(sizeof(char) * 32);
+  sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
+
+  int fd;
+  open_fifo(&fd, fifo_name, O_WRONLY);
+
   for (int i = 0; i < requests_array->current_index; i++) {
-    free(requests_array->requests[i]);
+    REQUEST *request = requests_array->requests[i];
+
+    if (request->final_timestamp == 0)
+      write_to_fd(fd, request, sizeof(REQUEST), STATUS);
   }
 
-  free(requests_array->requests);
-  free(requests_array);
+  // Send DONE to inform client that all requests were sent
+  write_to_fd(fd, NULL, 0, DONE);
+
+  free(fifo_name);
+  close(fd);
+
+  printf("------------------------\n");
+  return 0;
 }
