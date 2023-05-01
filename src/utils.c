@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,17 +9,23 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-PROGRAM_INFO *create_program_info(
-    int pid, char *name, suseconds_t timestamp, REQUEST_TYPE type
-) {
+PROGRAM_INFO *create_program_info(int pid, char *name, suseconds_t timestamp) {
   PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
   info->pid = pid;
   info->timestamp = timestamp;
-  info->type = type;
   strcpy(info->name, name);  // NOLINT
 
   return info;
+}
+
+HEADER *create_header(enum request_type type, size_t size) {
+  HEADER *header = malloc(sizeof(HEADER));
+
+  header->type = type;
+  header->size = size;
+
+  return header;
 }
 
 char *create_fifo(int pid) {
@@ -49,26 +56,48 @@ void open_fifo(int *fd, char *fifo_name, int flags) {
   }
 }
 
-int write_to_fd(int fd, PROGRAM_INFO *info) {
-  int write_bytes = write(fd, info, sizeof(PROGRAM_INFO));
+int write_to_fd(int fd, void *info, size_t size, enum request_type type) {
+  int write_bytes;
+  HEADER *header = create_header(type, size);
+
+  write_bytes = write(fd, header, sizeof(HEADER));
 
   if (write_bytes == -1) {
     perror("write");
     exit(EXIT_FAILURE);
   }
 
+  write_bytes = write(fd, info, size);
+
+  if (write_bytes == -1) {
+    perror("write");
+    exit(EXIT_FAILURE);
+  }
+
+  free(header);
+
   return write_bytes;
 }
 
-int read_from_fd(int fd, PROGRAM_INFO *info) {
-  int read_bytes = read(fd, info, sizeof(PROGRAM_INFO));
+enum request_type read_from_fd(int fd, void *info, size_t size) {
+  int read_bytes;
 
-  if (read_bytes == -1 || info->type == ERROR) {
+  HEADER header;
+  read_bytes = read(fd, &header, sizeof(HEADER));
+
+  if (read_bytes == -1 || header.type == ERROR) {
+    perror("server_error");
+    exit(EXIT_FAILURE);
+  }
+
+  read_bytes = read(fd, info, size);
+
+  if (read_bytes == -1) {
     perror("read");
     exit(EXIT_FAILURE);
   }
 
-  return read_bytes;
+  return header.type;
 }
 
 char *strdup(const char *s) {

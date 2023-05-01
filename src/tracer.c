@@ -12,10 +12,12 @@
 #include <unistd.h>
 
 #include "parser.h"
+#include "requests.h"
 #include "utils.h"
 
 // Forward declarations
 int execute_program(char *program_name, char **program, int monitor_fd);
+int execute_status(int fd);
 // End forward declarations
 
 int main(int argc, char **argv) {
@@ -44,6 +46,11 @@ int main(int argc, char **argv) {
       perror("execute_program");
       exit(EXIT_FAILURE);
     }
+  } else if (!strcmp(option, "status")) {
+    if (execute_status(fd) == -1) {
+      perror("execute_status");
+      exit(EXIT_FAILURE);
+    }
   }
 
   exit(EXIT_SUCCESS);
@@ -61,9 +68,10 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *execute_info =
-        create_program_info(pid, program[0], start_time.tv_usec, NEW);
+        create_program_info(pid, program[0], start_time.tv_usec);
 
-    if (write(monitor_fd, execute_info, sizeof(PROGRAM_INFO)) == -1) {
+    if (write_to_fd(monitor_fd, execute_info, sizeof(PROGRAM_INFO), NEW) ==
+        -1) {
       perror("write");
       exit(EXIT_FAILURE);
     }
@@ -87,20 +95,13 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
       // Child finished
       gettimeofday(&final_time, NULL);
       PROGRAM_INFO *done_info =
-          create_program_info(pid, program[0], final_time.tv_usec, UPDATE);
+          create_program_info(pid, program[0], final_time.tv_usec);
 
       // Ensure server answered with OK
       PROGRAM_INFO *answer_info = malloc(sizeof(PROGRAM_INFO));
-      read_from_fd(pid_fd, answer_info);
+      read_from_fd(pid_fd, answer_info, sizeof(PROGRAM_INFO));
 
-      if (answer_info->type == ERROR) {
-        perror("server error");
-        exit(EXIT_FAILURE);
-      }
-
-      // TODO: change the fd to the pid_fd
-      // Write the final timestamp to the monitor
-      write_to_fd(monitor_fd, done_info);
+      write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
       timeval_subtract(&diff, &final_time, &start_time);
@@ -109,7 +110,6 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
       // Close the named pipe
       close(monitor_fd);
       free(done_info);
-      free(answer_info);
       free(fifo_name);
 
       exit(EXIT_SUCCESS);
@@ -117,4 +117,32 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
 
     exit(EXIT_FAILURE);
   }
+}
+
+int execute_status(int fd) {
+  int pid = getpid();
+  char *fifo_name = create_fifo(pid);
+
+  struct timeval start_time;
+  gettimeofday(&start_time, NULL);
+
+  PROGRAM_INFO *info = create_program_info(pid, "status", start_time.tv_usec);
+
+  write_to_fd(fd, info, sizeof(PROGRAM_INFO), STATUS);
+
+  int pid_fd;
+  open_fifo(&pid_fd, fifo_name, O_RDONLY);
+
+  REQUEST *answer_data = malloc(sizeof(REQUEST));
+  // Read data from the named pipe
+  while (read_from_fd(pid_fd, answer_data, sizeof(REQUEST)) != DONE) {
+    printf("pid: %d\n", answer_data->pid);
+  }
+
+  free(info);
+  free(answer_data);
+  free(fifo_name);
+  close(pid_fd);
+
+  exit(EXIT_SUCCESS);
 }

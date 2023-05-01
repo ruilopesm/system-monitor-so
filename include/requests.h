@@ -16,18 +16,24 @@ typedef struct REQUESTS_ARRAY {
   int capacity;
 } REQUESTS_ARRAY;
 
-REQUESTS_ARRAY *create_requests_array(int size);
+int deal_request(
+    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type
+);
 
-REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command);
+REQUESTS_ARRAY *create_requests_array(int size);
 
 void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request);
 
-int find_request(REQUESTS_ARRAY *requests_array, int pid);
+int insert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
-int upsert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
-
-int get_total_time(REQUESTS_ARRAY *requests_array, int index);
+int update_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
 void free_requests_array(REQUESTS_ARRAY *requests_array);
+
+int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+
+int find_request(REQUESTS_ARRAY *requests_array, int pid);
+
+REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command);
 
 #endif  // REQUESTS_H

@@ -41,17 +41,10 @@ int main(void) {
   while (true) {
     // Read data from the named pipe
     PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
-    int read_bytes = read(fd, info, sizeof(PROGRAM_INFO));
-    if (read_bytes == -1) {
-      perror("read");
-      exit(EXIT_FAILURE);
-    }
+    enum request_type type = read_from_fd(fd, info, sizeof(PROGRAM_INFO));
 
-    if (read_bytes != 0 && info->type == NEW) {
-      printf("Received program %s with PID %d\n", info->name, info->pid);
-
-      upsert_request(requests_array, info);
-    }
+    printf("Type: %d\n", type);
+    deal_request(requests_array, info, type);
 
     free(info);
   }
