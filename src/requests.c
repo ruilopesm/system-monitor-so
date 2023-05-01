@@ -97,18 +97,26 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
 int deal_request(
     REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type
 ) {
+  int return_value = 0;
+
   if (type == NEW) {
     printf("New request\n");
-    return insert_request(requests_array, info);
+    return_value = insert_request(requests_array, info);
   } else if (type == UPDATE) {
     printf("Update request\n");
-    return update_request(requests_array, info);
+    return_value = update_request(requests_array, info);
   } else if (type == STATUS) {
-    return status_request(requests_array, info);
+    int pid = fork();
+    if (pid == 0) {
+      status_request(requests_array, info);
+      exit(EXIT_SUCCESS);
+    }
   } else {
     perror("Invalid request type");
     exit(EXIT_FAILURE);
   }
+
+  return return_value;
 }
 
 int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
