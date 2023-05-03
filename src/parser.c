@@ -4,9 +4,8 @@
 #include <string.h>
 
 char **parse_command(char *command) {
-  int arg_count = 1;
+  int arg_count = 1, i = 0;
   char **arguments = malloc(sizeof(char *) * (arg_count + 1));
-  int i = 0;
 
   char *arg = strtok(command, " ");
   while (arg != NULL) {
@@ -14,13 +13,32 @@ char **parse_command(char *command) {
     i++;
 
     if (i >= arg_count) {
-      arg_count += 1;
+      arg_count++;
       arguments = realloc(arguments, sizeof(char *) * (arg_count + 1));
     }
 
     arg = strtok(NULL, " ");
   }
+
   arguments[i] = NULL;
 
   return arguments;
+}
+
+int parse_pipeline(char *pipeline, char *pipeline_cmds[2]) {
+  int cmd_count = 0, i = 0;
+
+  char *cmd = strtok(pipeline, "|");
+  while (cmd != NULL) {
+    pipeline_cmds[i] = cmd;
+    i++;
+
+    if (i >= cmd_count) {
+      cmd_count++;
+    }
+
+    cmd = strtok(NULL, "|");
+  }
+
+  return cmd_count;
 }

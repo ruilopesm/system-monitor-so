@@ -99,8 +99,8 @@ int deal_request(
 ) {
   int return_value = 0;
 
-  if (type == NEW) {
-    printf("New request\n");
+  if (type == NEW || PIPELINE) {
+    printf("%s request\n", type == NEW ? "New" : "Pipeline");
     return_value = insert_request(requests_array, info);
   } else if (type == UPDATE) {
     printf("Update request\n");
@@ -139,6 +139,5 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   free(fifo_name);
   close(fd);
 
-  printf("------------------------\n");
   return 0;
 }

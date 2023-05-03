@@ -9,11 +9,12 @@
 
 typedef enum request_type {
   NEW,
-  UPDATE,
+  PIPELINE,
   STATUS,
+  UPDATE,
   ERROR,
-  OK,
-  DONE
+  DONE,
+  OK
 } REQUEST_TYPE;
 
 typedef struct program_info {

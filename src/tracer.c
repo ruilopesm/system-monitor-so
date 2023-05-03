@@ -18,6 +18,7 @@
 // Forward declarations
 int execute_program(char *program_name, char **program, int monitor_fd);
 int execute_status(int fd);
+int execute_pipeline(char *pipeline, int fd);
 // End forward declarations
 
 int main(int argc, char **argv) {
@@ -38,13 +39,26 @@ int main(int argc, char **argv) {
   char *option = argv[1];
 
   if (!strcmp(option, "execute")) {
-    char *argv_copy = strdup(argv[3]);
-    char **program = parse_command(argv_copy);
-    char *program_name = program[0];
+    char *flag = argv[2];
 
-    if (execute_program(program_name, program, fd) == -1) {
-      perror("execute_program");
-      exit(EXIT_FAILURE);
+    if (!strcmp(flag, "-u")) {
+      // Single execute
+      char *argv_copy = strdup(argv[3]);
+      char **program = parse_command(argv_copy);
+      char *program_name = program[0];
+
+      if (execute_program(program_name, program, fd) == -1) {
+        perror("execute_program");
+        exit(EXIT_FAILURE);
+      }
+    } else {  // flag is -p
+      // Pipeline execute
+      char *pipeline = strdup(argv[3]);
+
+      if (execute_pipeline(pipeline, fd) == -1) {
+        perror("execute_pipeline");
+        exit(EXIT_FAILURE);
+      }
     }
   } else if (!strcmp(option, "status")) {
     if (execute_status(fd) == -1) {
@@ -60,9 +74,8 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
   int pid = getpid();
   char *fifo_name = create_fifo(pid);
 
-  struct timeval start_time;
+  struct timeval start_time, final_time;
   gettimeofday(&start_time, NULL);
-  struct timeval final_time;
 
   int child_pid = fork();
   if (child_pid == 0) {
@@ -93,14 +106,18 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
     int status;
     if (wait(&status) > 0 && WIFEXITED(status)) {
       // Child finished
+
+      // Ensure server answered with OK
+      REQUEST_TYPE response;
+      read_from_fd(pid_fd, &response, sizeof(REQUEST_TYPE));
+      if (response != OK) {
+        printf("Server responded with %d\n", response);
+        exit(EXIT_FAILURE);
+      }
+
       gettimeofday(&final_time, NULL);
       PROGRAM_INFO *done_info =
           create_program_info(pid, program[0], final_time.tv_usec);
-
-      // Ensure server answered with OK
-      PROGRAM_INFO *answer_info = malloc(sizeof(PROGRAM_INFO));
-      read_from_fd(pid_fd, answer_info, sizeof(PROGRAM_INFO));
-
       write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
@@ -111,6 +128,7 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
       close(monitor_fd);
       free(done_info);
       free(fifo_name);
+      close(pid_fd);
 
       exit(EXIT_SUCCESS);
     }
@@ -143,6 +161,132 @@ int execute_status(int fd) {
   free(answer_data);
   free(fifo_name);
   close(pid_fd);
+
+  exit(EXIT_SUCCESS);
+}
+
+int execute_pipeline(char *pipeline, int fd) {
+  int pid = getpid();
+  char *fifo_name = create_fifo(pid);
+
+  struct timeval start_time, final_time;
+  gettimeofday(&start_time, NULL);
+
+  PROGRAM_INFO *info = create_program_info(pid, pipeline, start_time.tv_usec);
+  write_to_fd(fd, info, sizeof(PROGRAM_INFO), PIPELINE);
+
+  char *pipeline_cmds[2];
+  int pipeline_cmds_count = parse_pipeline(pipeline, pipeline_cmds);
+
+  int origin_stdin = dup(STDIN_FILENO);
+  int origin_stdout = dup(STDOUT_FILENO);
+
+  int *pipes = malloc(sizeof(int) * pipeline_cmds_count * 2);
+  for (int i = 0; i < pipeline_cmds_count; i++) {
+    if (pipe(&pipes[i * 2]) == -1) {
+      perror("pipe");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  int *child_pids = malloc(sizeof(int) * pipeline_cmds_count);
+  for (int i = 0; i < pipeline_cmds_count; i++) {
+    child_pids[i] = -1;
+  }
+
+  for (int i = 0; i < pipeline_cmds_count; i++) {
+    int pid = fork();
+    if (pid == 0) {
+      // Child
+      if (i == 0) {
+        // First command
+        close(pipes[0]);
+        dup2(pipes[1], STDOUT_FILENO);
+        close(pipes[1]);
+      } else if (i == pipeline_cmds_count - 1) {
+        // Last command
+        close(pipes[(i - 1) * 2 + 1]);
+        dup2(pipes[(i - 1) * 2], STDIN_FILENO);
+        close(pipes[(i - 1) * 2]);
+      } else {
+        // Middle command
+        close(pipes[(i - 1) * 2 + 1]);
+        dup2(pipes[(i - 1) * 2], STDIN_FILENO);
+        close(pipes[(i - 1) * 2]);
+
+        close(pipes[i * 2]);
+        dup2(pipes[i * 2 + 1], STDOUT_FILENO);
+        close(pipes[i * 2 + 1]);
+      }
+
+      // Close all pipe file descriptors in the child process
+      for (int j = 0; j < pipeline_cmds_count; j++) {
+        close(pipes[j * 2]);
+        close(pipes[j * 2 + 1]);
+      }
+
+      char *copy = strdup(pipeline_cmds[i]);
+      char **program = parse_command(copy);
+      char *program_name = program[0];
+
+      if (execvp(program_name, program) == -1) {
+        perror("execvp");
+        exit(EXIT_FAILURE);
+      }
+    } else {
+      // Parent
+      child_pids[i] = pid;
+    }
+  }
+
+  // Close all pipes
+  for (int i = 0; i < pipeline_cmds_count; i++) {
+    close(pipes[i * 2]);
+    close(pipes[i * 2 + 1]);
+  }
+
+  // Wait for all childs
+  for (int j = 0; j < pipeline_cmds_count; j++) {
+    int status;
+    if (waitpid(child_pids[j], &status, 0) == -1) {
+      perror("waitpid");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // Get stdin and stdout back to normal
+  dup2(origin_stdin, STDIN_FILENO);
+  dup2(origin_stdout, STDOUT_FILENO);
+  close(origin_stdin);
+  close(origin_stdout);
+
+  int pid_fd;
+  open_fifo(&pid_fd, fifo_name, O_RDONLY);
+
+  // Ensure server answered with OK
+  REQUEST_TYPE response;
+  read_from_fd(pid_fd, &response, sizeof(REQUEST_TYPE));
+  if (response != OK) {
+    printf("Server answered with %d\n", response);
+    exit(EXIT_FAILURE);
+  }
+
+  gettimeofday(&final_time, NULL);
+  PROGRAM_INFO *done_info =
+      create_program_info(pid, pipeline, final_time.tv_usec);
+  write_to_fd(fd, info, sizeof(PROGRAM_INFO), UPDATE);
+
+  struct timeval diff;
+  timeval_subtract(&diff, &final_time, &start_time);
+  printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
+
+  // Close the named pipe
+  close(pid_fd);
+  free(info);
+  free(done_info);
+  free(fifo_name);
+  free(pipes);
+  free(child_pids);
 
   exit(EXIT_SUCCESS);
 }
