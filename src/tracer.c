@@ -108,10 +108,9 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
       // Child finished
 
       // Ensure server answered with OK
-      REQUEST_TYPE response;
-      read_from_fd(pid_fd, &response, sizeof(REQUEST_TYPE));
+      REQUEST_TYPE response = read_from_fd(pid_fd, NULL, sizeof(HEADER));
       if (response != OK) {
-        printf("Server responded with %d\n", response);
+        printf("Server answered with an error\n");
         exit(EXIT_FAILURE);
       }
 
@@ -125,10 +124,10 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
       printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
 
       // Close the named pipe
-      close(monitor_fd);
       free(done_info);
       free(fifo_name);
-      close(pid_fd);
+      free(program_name);
+      free(program);
 
       exit(EXIT_SUCCESS);
     }
@@ -139,28 +138,26 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
 
 int execute_status(int fd) {
   int pid = getpid();
+  printf("PID: %d\n", pid);
   char *fifo_name = create_fifo(pid);
 
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
   PROGRAM_INFO *info = create_program_info(pid, "status", start_time.tv_usec);
-
   write_to_fd(fd, info, sizeof(PROGRAM_INFO), STATUS);
 
   int pid_fd;
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
 
   REQUEST *answer_data = malloc(sizeof(REQUEST));
-  // Read data from the named pipe
   while (read_from_fd(pid_fd, answer_data, sizeof(REQUEST)) != DONE) {
-    printf("pid: %d\n", answer_data->pid);
+    printf("Program %s running (%d)\n", answer_data->command, answer_data->pid);
   }
 
   free(info);
   free(answer_data);
   free(fifo_name);
-  close(pid_fd);
 
   exit(EXIT_SUCCESS);
 }
@@ -264,10 +261,9 @@ int execute_pipeline(char *pipeline, int fd) {
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
 
   // Ensure server answered with OK
-  REQUEST_TYPE response;
-  read_from_fd(pid_fd, &response, sizeof(REQUEST_TYPE));
+  REQUEST_TYPE response = read_from_fd(pid_fd, NULL, sizeof(HEADER));
   if (response != OK) {
-    printf("Server answered with %d\n", response);
+    printf("Server answered with an error\n");
     exit(EXIT_FAILURE);
   }
 
@@ -281,10 +277,9 @@ int execute_pipeline(char *pipeline, int fd) {
   printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
 
   // Close the named pipe
-  close(pid_fd);
   free(info);
-  free(done_info);
   free(fifo_name);
+  free(done_info);
   free(pipes);
   free(child_pids);
 

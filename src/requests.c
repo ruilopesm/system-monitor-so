@@ -55,7 +55,7 @@ int insert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   REQUEST *new_request = create_request(info->pid, info->timestamp, info->name);
   append_request(requests_array, new_request);
 
-  char *fifo_name = malloc(sizeof(char) * 32);
+  char *fifo_name = malloc(sizeof(char) * 64);
   sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
   int fd;
@@ -95,32 +95,30 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
 }
 
 int deal_request(
-    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type
+    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
 ) {
-  int return_value = 0;
-
-  if (type == NEW || PIPELINE) {
-    printf("%s request\n", type == NEW ? "New" : "Pipeline");
-    return_value = insert_request(requests_array, info);
+  if (type == NEW || type == PIPELINE) {
+    printf("%s request (%d)\n", type == NEW ? "New" : "Pipeline", info->pid);
+    return insert_request(requests_array, info);
   } else if (type == UPDATE) {
-    printf("Update request\n");
-    return_value = update_request(requests_array, info);
+    printf("Update request (%d)\n", info->pid);
+    return update_request(requests_array, info);
   } else if (type == STATUS) {
+    printf("Status request (%d)\n", info->pid);
     int pid = fork();
     if (pid == 0) {
-      status_request(requests_array, info);
-      exit(EXIT_SUCCESS);
+      return status_request(requests_array, info);
     }
   } else {
     perror("Invalid request type");
     exit(EXIT_FAILURE);
   }
 
-  return return_value;
+  return -1;
 }
 
 int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
-  char *fifo_name = malloc(sizeof(char) * 32);
+  char *fifo_name = malloc(sizeof(char) * 64);
   sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
   int fd;

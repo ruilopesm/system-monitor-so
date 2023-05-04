@@ -43,7 +43,6 @@ int main(void) {
     PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
     REQUEST_TYPE type = read_from_fd(fd, info, sizeof(PROGRAM_INFO));
 
-    printf("Type: %d\n", type);
     deal_request(requests_array, info, type);
 
     free(info);
