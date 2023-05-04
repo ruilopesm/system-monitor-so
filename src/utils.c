@@ -29,15 +29,8 @@ HEADER *create_header(REQUEST_TYPE type, size_t size) {
 }
 
 char *create_fifo(int pid) {
-  const int MAX_SIZE = 64;
-  char *fifo_name = malloc(sizeof(char) * MAX_SIZE);
-
-  int bytes_written =
-      snprintf(fifo_name, MAX_SIZE, "tmp/%d.fifo", pid);  // NOLINT
-  if (bytes_written < 0 || bytes_written >= MAX_SIZE) {
-    perror("snprintf");
-    exit(EXIT_FAILURE);
-  }
+  char *fifo_name = malloc(sizeof(char) * 64);
+  sprintf(fifo_name, "tmp/%d.fifo", pid);  // NOLINT
 
   if (mkfifo(fifo_name, 0666) == -1) {
     perror("mkfifo");

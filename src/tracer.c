@@ -138,7 +138,6 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
 
 int execute_status(int fd) {
   int pid = getpid();
-  printf("PID: %d\n", pid);
   char *fifo_name = create_fifo(pid);
 
   struct timeval start_time;

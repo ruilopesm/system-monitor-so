@@ -97,24 +97,27 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
 int deal_request(
     REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
 ) {
+  int to_return = 0;
+
   if (type == NEW || type == PIPELINE) {
     printf("%s request (%d)\n", type == NEW ? "New" : "Pipeline", info->pid);
-    return insert_request(requests_array, info);
+    to_return = insert_request(requests_array, info);
   } else if (type == UPDATE) {
     printf("Update request (%d)\n", info->pid);
-    return update_request(requests_array, info);
+    to_return = update_request(requests_array, info);
   } else if (type == STATUS) {
     printf("Status request (%d)\n", info->pid);
     int pid = fork();
     if (pid == 0) {
-      return status_request(requests_array, info);
+      status_request(requests_array, info);
+      exit(EXIT_SUCCESS);
     }
   } else {
     perror("Invalid request type");
     exit(EXIT_FAILURE);
   }
 
-  return -1;
+  return to_return;
 }
 
 int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
@@ -127,8 +130,9 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   for (int i = 0; i < requests_array->current_index; i++) {
     REQUEST *request = requests_array->requests[i];
 
-    if (request->final_timestamp == 0)
+    if (request->final_timestamp == 0) {
       write_to_fd(fd, request, sizeof(REQUEST), STATUS);
+    }
   }
 
   // Send DONE to inform client that all requests were sent
