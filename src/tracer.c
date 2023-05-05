@@ -15,12 +15,6 @@
 #include "requests.h"
 #include "utils.h"
 
-// Forward declarations
-int execute_program(char *program_name, char **program, int monitor_fd);
-int execute_status(int fd);
-int execute_pipeline(char *pipeline, int fd);
-// End forward declarations
-
 int main(int argc, char **argv) {
   if (argc < 2) {
     printf("Usage: %s <option>\n", argv[0]);
@@ -43,19 +37,23 @@ int main(int argc, char **argv) {
 
     if (!strcmp(flag, "-u")) {
       // Single execute
-      char *argv_copy = strdup(argv[3]);
-      char **program = parse_command(argv_copy);
-      char *program_name = program[0];
+      char *command = strdup(argv[3]);
+      char **parsed_command = parse_command(argv[3], NULL, " ");
 
-      if (execute_program(program_name, program, fd) == -1) {
+      if (execute_program(command, parsed_command, fd) == -1) {
         perror("execute_program");
         exit(EXIT_FAILURE);
       }
     } else {  // flag is -p
       // Pipeline execute
       char *pipeline = strdup(argv[3]);
+      int pipeline_cmds_count = 0;
+      char **parsed_pipeline =
+          parse_command(argv[3], &pipeline_cmds_count, "|");
 
-      if (execute_pipeline(pipeline, fd) == -1) {
+      if (execute_pipeline(
+              pipeline, parsed_pipeline, pipeline_cmds_count, fd
+          ) == -1) {
         perror("execute_pipeline");
         exit(EXIT_FAILURE);
       }
@@ -70,7 +68,7 @@ int main(int argc, char **argv) {
   exit(EXIT_SUCCESS);
 }
 
-int execute_program(char *program_name, char **program, int monitor_fd) {
+int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
   int pid = getpid();
   char *fifo_name = create_fifo(pid);
 
@@ -81,7 +79,7 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *execute_info =
-        create_program_info(pid, program[0], start_time.tv_usec);
+        create_program_info(pid, full_program, start_time.tv_usec);
     if (write_to_fd(monitor_fd, execute_info, sizeof(PROGRAM_INFO), NEW) ==
         -1) {
       perror("write");
@@ -90,7 +88,7 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
 
     free(execute_info);
 
-    if (execvp(program_name, program) == -1) {
+    if (execvp(parsed_program[0], parsed_program) == -1) {
       perror("execlp");
       exit(EXIT_FAILURE);
     }
@@ -115,18 +113,18 @@ int execute_program(char *program_name, char **program, int monitor_fd) {
 
       gettimeofday(&final_time, NULL);
       PROGRAM_INFO *done_info =
-          create_program_info(pid, program[0], final_time.tv_usec);
+          create_program_info(pid, full_program, final_time.tv_usec);
       write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
       timeval_subtract(&diff, &final_time, &start_time);
       printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
 
-      // Close the named pipe
+      // Clean resources
       free(done_info);
       free(fifo_name);
-      free(program_name);
-      free(program);
+      free(parsed_program);
+      free(full_program);
 
       exit(EXIT_SUCCESS);
     }
@@ -150,9 +148,12 @@ int execute_status(int fd) {
 
   REQUEST *answer_data = malloc(sizeof(REQUEST));
   while (read_from_fd(pid_fd, answer_data, sizeof(REQUEST)) != DONE) {
-    printf("Program %s running (%d)\n", answer_data->command, answer_data->pid);
+    printf(
+        "Program '%s' running (%d)\n", answer_data->command, answer_data->pid
+    );
   }
 
+  // Clean resources
   free(info);
   free(answer_data);
   free(fifo_name);
@@ -160,7 +161,9 @@ int execute_status(int fd) {
   exit(EXIT_SUCCESS);
 }
 
-int execute_pipeline(char *pipeline, int fd) {
+int execute_pipeline(
+    char *pipeline, char **parsed_pipeline, int pipeline_cmds_count, int fd
+) {
   int pid = getpid();
   char *fifo_name = create_fifo(pid);
 
@@ -170,9 +173,6 @@ int execute_pipeline(char *pipeline, int fd) {
   // Prepare execution
   int original_stdin = dup(STDIN_FILENO);
   int original_stdout = dup(STDOUT_FILENO);
-
-  char *pipeline_cmds[2];
-  int pipeline_cmds_count = parse_pipeline(pipeline, pipeline_cmds);
 
   int child_pid = fork();
   if (child_pid == 0) {
@@ -227,11 +227,8 @@ int execute_pipeline(char *pipeline, int fd) {
           close(pipes[j * 2 + 1]);
         }
 
-        char *copy = strdup(pipeline_cmds[i]);
-        char **program = parse_command(copy);
-        char *program_name = program[0];
-
-        if (execvp(program_name, program) == -1) {
+        char **parsed_program = parse_command(parsed_pipeline[i], NULL, " ");
+        if (execvp(parsed_program[0], parsed_program) == -1) {
           perror("execvp");
           exit(EXIT_FAILURE);
         }
@@ -286,7 +283,7 @@ int execute_pipeline(char *pipeline, int fd) {
       timeval_subtract(&diff, &final_time, &start_time);
       printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
 
-      // Close the named pipe
+      // CLean resources
       free(done_info);
       free(fifo_name);
 

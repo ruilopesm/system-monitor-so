@@ -100,10 +100,13 @@ int deal_request(
   int to_return = 0;
 
   if (type == NEW || type == PIPELINE) {
-    printf("%s request (%d)\n", type == NEW ? "New" : "Pipeline", info->pid);
+    printf(
+        "%s request (%d) - '%s'\n", type == NEW ? "New" : "Pipeline", info->pid,
+        info->name
+    );
     to_return = insert_request(requests_array, info);
   } else if (type == UPDATE) {
-    printf("Update request (%d)\n", info->pid);
+    printf("Update request (%d) - '%s'\n", info->pid, info->name);
     to_return = update_request(requests_array, info);
   } else if (type == STATUS) {
     printf("Status request (%d)\n", info->pid);
@@ -113,7 +116,7 @@ int deal_request(
       exit(EXIT_SUCCESS);
     }
   } else {
-    perror("Invalid request type");
+    puts("Invalid request type received");
     exit(EXIT_FAILURE);
   }
 
