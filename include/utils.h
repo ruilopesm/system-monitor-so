@@ -19,7 +19,7 @@ typedef enum request_type {
 
 typedef struct program_info {
   int pid;
-  char name[50];
+  char name[256];
   suseconds_t timestamp;
 } PROGRAM_INFO;
 
