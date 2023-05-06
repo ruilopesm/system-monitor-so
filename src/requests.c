@@ -177,7 +177,7 @@ int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
       64
   );
   sprintf(
-      data, "COMMAND: %s \nPID: %d \nDURATION[sec]: %ld", request->command,
+      data, "COMMAND: %s \nPID: %d \nDURATION[ms]: %ld", request->command,
       request->pid, result_timeval.tv_sec
   );  // NOLINT
 
