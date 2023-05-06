@@ -36,4 +36,6 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid);
 
 REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command);
 
+int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+
 #endif  // REQUESTS_H

@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -45,5 +46,9 @@ char *strdup(const char *s);
 int timeval_subtract(
     struct timeval *result, struct timeval *x, struct timeval *y
 );
+
+int open_file(const char *path, int flags, mode_t mode);
+
+int write_to_file(int fd, void *info, size_t size);
 
 #endif  // UTILS_H

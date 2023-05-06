@@ -126,3 +126,23 @@ int timeval_subtract(
   // Return 1 if result is negative
   return x->tv_sec < y->tv_sec;
 }
+
+int open_file(const char *path, int flags, mode_t mode) {
+  int fd = open(path, flags, mode);
+  if (fd == -1) {
+    perror("open");
+    exit(EXIT_FAILURE);
+  }
+  return fd;
+}
+
+int write_to_file(int fd, void *info, size_t size) {
+  int written_bytes = write(fd, info, size);
+
+  if (written_bytes == -1 || written_bytes != (int)size) {
+    perror("write");
+    exit(EXIT_FAILURE);
+  }
+
+  return written_bytes;
+}

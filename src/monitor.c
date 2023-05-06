@@ -13,7 +13,22 @@
 #include "requests.h"
 #include "utils.h"
 
-int main(void) {
+char *folder = "PIDS-folder";
+
+int main(int argc, char *argv[]) {
+  if (argc == 2) {
+    folder = argv[1];
+  } else if (argc > 2) {
+    printf("Usage: %s [folder]\n", argv[0]);
+    exit(EXIT_FAILURE);
+  }
+
+  // Create the folder if it doesn't exist
+  if (mkdir(folder, 0777) == -1) {
+    perror("mkdir");
+    exit(EXIT_FAILURE);
+  }
+
   REQUESTS_ARRAY *requests_array = create_requests_array(100);
 
   if (mkfifo(MAIN_FIFO_NAME, 0666) ==
