@@ -3,24 +3,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-char **parse_command(char *command) {
-  int arg_count = 1;
-  char **arguments = malloc(sizeof(char *) * (arg_count + 1));
-  int i = 0;
+char **parse_command(char *command, int *counter, char *delim) {
+  char **parsed_command = malloc(sizeof(char *));
+  int parsed_command_size = 0;
 
-  char *arg = strtok(command, " ");
-  while (arg != NULL) {
-    arguments[i] = arg;
-    i++;
+  char *token = strtok(command, delim);
 
-    if (i >= arg_count) {
-      arg_count += 1;
-      arguments = realloc(arguments, sizeof(char *) * (arg_count + 1));
-    }
+  while (token != NULL) {
+    parsed_command[parsed_command_size++] = token;
+    parsed_command =
+        realloc(parsed_command, sizeof(char *) * (parsed_command_size + 1));
 
-    arg = strtok(NULL, " ");
+    token = strtok(NULL, delim);
   }
-  arguments[i] = NULL;
 
-  return arguments;
+  parsed_command[parsed_command_size] = NULL;
+
+  if (counter) {
+    *counter = parsed_command_size;
+  }
+
+  return parsed_command;
 }

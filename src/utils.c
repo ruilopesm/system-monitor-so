@@ -19,7 +19,7 @@ PROGRAM_INFO *create_program_info(int pid, char *name, suseconds_t timestamp) {
   return info;
 }
 
-HEADER *create_header(enum request_type type, size_t size) {
+HEADER *create_header(REQUEST_TYPE type, size_t size) {
   HEADER *header = malloc(sizeof(HEADER));
 
   header->type = type;
@@ -29,15 +29,8 @@ HEADER *create_header(enum request_type type, size_t size) {
 }
 
 char *create_fifo(int pid) {
-  const int MAX_SIZE = 64;
-  char *fifo_name = malloc(sizeof(char) * MAX_SIZE);
-
-  int bytes_written =
-      snprintf(fifo_name, MAX_SIZE, "tmp/%d.fifo", pid);  // NOLINT
-  if (bytes_written < 0 || bytes_written >= MAX_SIZE) {
-    perror("snprintf");
-    exit(EXIT_FAILURE);
-  }
+  char *fifo_name = malloc(sizeof(char) * 64);
+  sprintf(fifo_name, "tmp/%d.fifo", pid);  // NOLINT
 
   if (mkfifo(fifo_name, 0666) == -1) {
     perror("mkfifo");
@@ -56,37 +49,35 @@ void open_fifo(int *fd, char *fifo_name, int flags) {
   }
 }
 
-int write_to_fd(int fd, void *info, size_t size, enum request_type type) {
-  int write_bytes;
+int write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type) {
   HEADER *header = create_header(type, size);
-
-  write_bytes = write(fd, header, sizeof(HEADER));
-
-  if (write_bytes == -1) {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-
-  write_bytes = write(fd, info, size);
-
-  if (write_bytes == -1) {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-
+  int written_bytes = write(fd, header, sizeof(HEADER));
   free(header);
 
-  return write_bytes;
+  if (written_bytes == -1) {
+    perror("write");
+    exit(EXIT_FAILURE);
+  }
+
+  int info_written_bytes = 0;
+  if (info) {
+    info_written_bytes = write(fd, info, size);
+
+    if (info_written_bytes == -1) {
+      perror("write");
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  return written_bytes + info_written_bytes;
 }
 
-enum request_type read_from_fd(int fd, void *info, size_t size) {
-  int read_bytes;
-
+REQUEST_TYPE read_from_fd(int fd, void *info, size_t size) {
   HEADER header;
-  read_bytes = read(fd, &header, sizeof(HEADER));
+  int read_bytes = read(fd, &header, sizeof(HEADER));
 
   if (read_bytes == -1 || header.type == ERROR) {
-    perror("server_error");
+    perror("read or server error");
     exit(EXIT_FAILURE);
   }
 
