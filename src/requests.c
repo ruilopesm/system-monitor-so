@@ -164,11 +164,9 @@ int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
 
   struct timeval initial_timeval, final_timeval, result_timeval;
 
-  initial_timeval.tv_sec = request->initial_timestamp;
-  initial_timeval.tv_usec = 0;
+  initial_timeval.tv_usec = request->initial_timestamp;
 
-  final_timeval.tv_sec = request->final_timestamp;
-  final_timeval.tv_usec = 0;
+  final_timeval.tv_usec = request->final_timestamp;
 
   timeval_subtract(&result_timeval, &final_timeval, &initial_timeval);
 
