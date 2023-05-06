@@ -4,7 +4,7 @@
 #include "utils.h"
 
 typedef struct request {
-  int pid;
+  pid_t pid;
   struct timeval initial_timestamp;
   struct timeval final_timestamp;
   char command[256];
@@ -16,11 +16,11 @@ typedef struct REQUESTS_ARRAY {
   int capacity;
 } REQUESTS_ARRAY;
 
-int deal_request(
+int deal_with_request(
     REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
 );
 
-REQUESTS_ARRAY *create_requests_array(int size);
+REQUESTS_ARRAY *create_requests_array(size_t size);
 
 void append_request(REQUESTS_ARRAY *requests_array, REQUEST *request);
 
@@ -32,12 +32,12 @@ void free_requests_array(REQUESTS_ARRAY *requests_array);
 
 int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
-int find_request(REQUESTS_ARRAY *requests_array, int pid);
+int find_request(REQUESTS_ARRAY *requests_array, pid_t pid);
 
 REQUEST *create_request(
-    int pid, struct timeval initial_timestamp, char *command
+    pid_t pid, struct timeval initial_timestamp, char *command
 );
 
-int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
 #endif  // REQUESTS_H

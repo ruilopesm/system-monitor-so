@@ -12,7 +12,7 @@
 #include "monitor.h"
 #include "utils.h"
 
-REQUESTS_ARRAY *create_requests_array(int size) {
+REQUESTS_ARRAY *create_requests_array(size_t size) {
   REQUESTS_ARRAY *requests_array = malloc(sizeof(REQUESTS_ARRAY));
 
   requests_array->requests = malloc(sizeof(REQUEST *) * size);
@@ -23,7 +23,7 @@ REQUESTS_ARRAY *create_requests_array(int size) {
 }
 
 REQUEST *create_request(
-    int pid, struct timeval initial_timestamp, char *command
+    pid_t pid, struct timeval initial_timestamp, char *command
 ) {
   REQUEST *request = malloc(sizeof(REQUEST));
 
@@ -90,7 +90,7 @@ void free_requests_array(REQUESTS_ARRAY *requests_array) {
   }
 }
 
-int find_request(REQUESTS_ARRAY *requests_array, int pid) {
+int find_request(REQUESTS_ARRAY *requests_array, pid_t pid) {
   for (int i = 0; i < requests_array->current_index; i++) {
     if (requests_array->requests[i]->pid == pid) {
       return i;
@@ -100,7 +100,7 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
   return -1;
 }
 
-int deal_request(
+int deal_with_request(
     REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
 ) {
   int to_return = 0;
@@ -118,7 +118,7 @@ int deal_request(
     store_request(requests_array, info);
   } else if (type == STATUS) {
     printf("Status request (%d)\n", info->pid);
-    int pid = fork();
+    pid_t pid = fork();
     if (pid == 0) {
       status_request(requests_array, info);
       exit(EXIT_SUCCESS);
@@ -157,16 +157,14 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   return 0;
 }
 
-int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
-  int pid = info->pid;
-
+ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   char *pid_str = malloc(sizeof(char) * 64);
-  sprintf(pid_str, "%s/%d", folder, pid);  // NOLINT
+  sprintf(pid_str, "%s/%d", folder, info->pid);  // NOLINT
 
-  int fd = open_file(pid_str, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  int fd = open_file_by_path(pid_str, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
   // find the request
-  int index = find_request(requests_array, pid);
+  int index = find_request(requests_array, info->pid);
   REQUEST *request = requests_array->requests[index];
 
   struct timeval initial_timeval = request->initial_timestamp;
@@ -174,18 +172,17 @@ int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   struct timeval result_timeval;
   timeval_subtract(&result_timeval, &final_timeval, &initial_timeval);
 
-  char *data =
-      malloc(sizeof(request->command) + sizeof(long int) + sizeof(pid) + 64);
+  char *data = malloc(sizeof(request->command) + sizeof(long int) + 64);
 
   // NOLINTBEGIN
   sprintf(
-      data, "COMMAND: %s \nPID: %d \nDURATION[ms]: %ld", request->command,
-      request->pid, result_timeval.tv_usec / 1000 + result_timeval.tv_sec * 1000
+      data, "COMMAND: %s\nDURATION[ms]: %ld", request->command,
+      result_timeval.tv_usec / 1000 + result_timeval.tv_sec * 1000
   );
   // NOLINTEND
 
   // Clean resources
   free(pid_str);
 
-  return write_to_file(fd, data, strlen(data));
+  return simple_write_to_fd(fd, data, strlen(data));
 }

@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 PROGRAM_INFO *create_program_info(
-    int pid, char *name, struct timeval timestamp
+    pid_t pid, char *name, struct timeval timestamp
 ) {
   PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
@@ -30,7 +30,14 @@ HEADER *create_header(REQUEST_TYPE type, size_t size) {
   return header;
 }
 
-char *create_fifo(int pid) {
+void make_fifo(char *fifo_name) {
+  if (mkfifo(fifo_name, 0666) == -1) {
+    perror("mkfifo");
+    exit(EXIT_FAILURE);
+  }
+}
+
+char *create_fifo(pid_t pid) {
   char *fifo_name = malloc(sizeof(char) * 64);
   sprintf(fifo_name, "tmp/%d.fifo", pid);  // NOLINT
 
@@ -51,9 +58,16 @@ void open_fifo(int *fd, char *fifo_name, int flags) {
   }
 }
 
-int write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type) {
+void close_fifo(int fd) {
+  if (close(fd) == -1) {
+    perror("close");
+    exit(EXIT_FAILURE);
+  }
+}
+
+ssize_t write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type) {
   HEADER *header = create_header(type, size);
-  int written_bytes = write(fd, header, sizeof(HEADER));
+  ssize_t written_bytes = write(fd, header, sizeof(HEADER));
   free(header);
 
   if (written_bytes == -1) {
@@ -61,7 +75,7 @@ int write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type) {
     exit(EXIT_FAILURE);
   }
 
-  int info_written_bytes = 0;
+  ssize_t info_written_bytes = 0;
   if (info) {
     info_written_bytes = write(fd, info, size);
 
@@ -91,6 +105,28 @@ REQUEST_TYPE read_from_fd(int fd, void *info, size_t size) {
   }
 
   return header.type;
+}
+
+int open_file_by_path(char *path, int flags, mode_t mode) {
+  int fd = open(path, flags, mode);
+
+  if (fd == -1) {
+    perror("open");
+    exit(EXIT_FAILURE);
+  }
+
+  return fd;
+}
+
+ssize_t simple_write_to_fd(int fd, void *info, size_t size) {
+  ssize_t written_bytes = write(fd, info, size);
+
+  if (written_bytes == -1 || written_bytes != (ssize_t)size) {
+    perror("write");
+    exit(EXIT_FAILURE);
+  }
+
+  return written_bytes;
 }
 
 char *strdup(const char *s) {
@@ -127,24 +163,4 @@ int timeval_subtract(
 
   // Return 1 if result is negative
   return x->tv_sec < y->tv_sec;
-}
-
-int open_file(const char *path, int flags, mode_t mode) {
-  int fd = open(path, flags, mode);
-  if (fd == -1) {
-    perror("open");
-    exit(EXIT_FAILURE);
-  }
-  return fd;
-}
-
-int write_to_file(int fd, void *info, size_t size) {
-  int written_bytes = write(fd, info, size);
-
-  if (written_bytes == -1 || written_bytes != (int)size) {
-    perror("write");
-    exit(EXIT_FAILURE);
-  }
-
-  return written_bytes;
 }

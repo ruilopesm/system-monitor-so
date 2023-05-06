@@ -21,14 +21,15 @@ int main(int argc, char **argv) {
     exit(EXIT_FAILURE);
   }
 
-  int fd;
+  // Wait until the monitor FIFO has been created
+  int monitor_fd;
   do {
-    fd = open(MAIN_FIFO_NAME, O_WRONLY);
-    if (fd == -1) {
+    monitor_fd = open(MAIN_FIFO_NAME, O_WRONLY);
+    if (monitor_fd == -1) {
       perror("open");
-      sleep(1);
+      sleep(1);  // Try again within 1 second
     }
-  } while (fd == -1);
+  } while (monitor_fd == -1);
 
   char *option = argv[1];
 
@@ -40,7 +41,7 @@ int main(int argc, char **argv) {
       char *command = strdup(argv[3]);
       char **parsed_command = parse_command(argv[3], NULL, " ");
 
-      if (execute_program(command, parsed_command, fd) == -1) {
+      if (execute_program(command, parsed_command, monitor_fd) == -1) {
         perror("execute_program");
         exit(EXIT_FAILURE);
       }
@@ -52,14 +53,14 @@ int main(int argc, char **argv) {
           parse_command(argv[3], &pipeline_cmds_count, "|");
 
       if (execute_pipeline(
-              pipeline, parsed_pipeline, pipeline_cmds_count, fd
+              pipeline, parsed_pipeline, pipeline_cmds_count, monitor_fd
           ) == -1) {
         perror("execute_pipeline");
         exit(EXIT_FAILURE);
       }
     }
   } else if (!strcmp(option, "status")) {
-    if (execute_status(fd) == -1) {
+    if (execute_status(monitor_fd) == -1) {
       perror("execute_status");
       exit(EXIT_FAILURE);
     }
@@ -69,7 +70,7 @@ int main(int argc, char **argv) {
 }
 
 int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
-  int pid = getpid();
+  pid_t pid = getpid();
   char *fifo_name = create_fifo(pid);
 
   struct timeval start_time, final_time;
@@ -80,16 +81,12 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
     // Child
     PROGRAM_INFO *execute_info =
         create_program_info(pid, full_program, start_time);
-    if (write_to_fd(monitor_fd, execute_info, sizeof(PROGRAM_INFO), NEW) ==
-        -1) {
-      perror("write");
-      exit(EXIT_FAILURE);
-    }
+    write_to_fd(monitor_fd, execute_info, sizeof(PROGRAM_INFO), NEW);
 
     free(execute_info);
 
     if (execvp(parsed_program[0], parsed_program) == -1) {
-      perror("execlp");
+      perror("execvp");
       exit(EXIT_FAILURE);
     }
 
@@ -133,15 +130,15 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
   }
 }
 
-int execute_status(int fd) {
-  int pid = getpid();
+int execute_status(int monitor_fd) {
+  pid_t pid = getpid();
   char *fifo_name = create_fifo(pid);
 
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
   PROGRAM_INFO *info = create_program_info(pid, "status", start_time);
-  write_to_fd(fd, info, sizeof(PROGRAM_INFO), STATUS);
+  write_to_fd(monitor_fd, info, sizeof(PROGRAM_INFO), STATUS);
 
   int pid_fd;
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
@@ -162,9 +159,10 @@ int execute_status(int fd) {
 }
 
 int execute_pipeline(
-    char *pipeline, char **parsed_pipeline, int pipeline_cmds_count, int fd
+    char *pipeline, char **parsed_pipeline, int pipeline_cmds_count,
+    int monitor_fd
 ) {
-  int pid = getpid();
+  pid_t pid = getpid();
   char *fifo_name = create_fifo(pid);
 
   struct timeval start_time, final_time;
@@ -178,10 +176,7 @@ int execute_pipeline(
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *info = create_program_info(pid, pipeline, start_time);
-    if (write_to_fd(fd, info, sizeof(PROGRAM_INFO), PIPELINE) == -1) {
-      perror("write");
-      exit(EXIT_FAILURE);
-    }
+    write_to_fd(monitor_fd, info, sizeof(PROGRAM_INFO), PIPELINE);
 
     int *pipes = malloc(sizeof(int) * pipeline_cmds_count * 2);
     for (int i = 0; i < pipeline_cmds_count; i++) {
@@ -197,7 +192,7 @@ int execute_pipeline(
     }
 
     for (int i = 0; i < pipeline_cmds_count; i++) {
-      int pid = fork();
+      pid_t pid = fork();
       if (pid == 0) {
         // Child
         if (i == 0) {
@@ -276,13 +271,13 @@ int execute_pipeline(
 
       gettimeofday(&final_time, NULL);
       PROGRAM_INFO *done_info = create_program_info(pid, pipeline, final_time);
-      write_to_fd(fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
+      write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
       timeval_subtract(&diff, &final_time, &start_time);
       printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
 
-      // CLean resources
+      // Clean resources
       free(done_info);
       free(fifo_name);
 
