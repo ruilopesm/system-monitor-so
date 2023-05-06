@@ -79,7 +79,7 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *execute_info =
-        create_program_info(pid, full_program, start_time.tv_usec);
+        create_program_info(pid, full_program, start_time);
     if (write_to_fd(monitor_fd, execute_info, sizeof(PROGRAM_INFO), NEW) ==
         -1) {
       perror("write");
@@ -113,7 +113,7 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
 
       gettimeofday(&final_time, NULL);
       PROGRAM_INFO *done_info =
-          create_program_info(pid, full_program, final_time.tv_usec);
+          create_program_info(pid, full_program, final_time);
       write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
@@ -140,7 +140,7 @@ int execute_status(int fd) {
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
-  PROGRAM_INFO *info = create_program_info(pid, "status", start_time.tv_usec);
+  PROGRAM_INFO *info = create_program_info(pid, "status", start_time);
   write_to_fd(fd, info, sizeof(PROGRAM_INFO), STATUS);
 
   int pid_fd;
@@ -177,7 +177,7 @@ int execute_pipeline(
   int child_pid = fork();
   if (child_pid == 0) {
     // Child
-    PROGRAM_INFO *info = create_program_info(pid, pipeline, start_time.tv_usec);
+    PROGRAM_INFO *info = create_program_info(pid, pipeline, start_time);
     if (write_to_fd(fd, info, sizeof(PROGRAM_INFO), PIPELINE) == -1) {
       perror("write");
       exit(EXIT_FAILURE);
@@ -275,8 +275,7 @@ int execute_pipeline(
       }
 
       gettimeofday(&final_time, NULL);
-      PROGRAM_INFO *done_info =
-          create_program_info(pid, pipeline, final_time.tv_usec);
+      PROGRAM_INFO *done_info = create_program_info(pid, pipeline, final_time);
       write_to_fd(fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
