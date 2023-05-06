@@ -17,7 +17,7 @@ typedef struct REQUESTS_ARRAY {
 } REQUESTS_ARRAY;
 
 int deal_request(
-    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type
+    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
 );
 
 REQUESTS_ARRAY *create_requests_array(int size);

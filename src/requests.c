@@ -55,7 +55,7 @@ int insert_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   REQUEST *new_request = create_request(info->pid, info->timestamp, info->name);
   append_request(requests_array, new_request);
 
-  char *fifo_name = malloc(sizeof(char) * 32);
+  char *fifo_name = malloc(sizeof(char) * 64);
   sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
   int fd;
@@ -95,32 +95,36 @@ int find_request(REQUESTS_ARRAY *requests_array, int pid) {
 }
 
 int deal_request(
-    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, enum request_type type
+    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
 ) {
-  int return_value = 0;
+  int to_return = 0;
 
-  if (type == NEW) {
-    printf("New request\n");
-    return_value = insert_request(requests_array, info);
+  if (type == NEW || type == PIPELINE) {
+    printf(
+        "%s request (%d) - '%s'\n", type == NEW ? "New" : "Pipeline", info->pid,
+        info->name
+    );
+    to_return = insert_request(requests_array, info);
   } else if (type == UPDATE) {
-    printf("Update request\n");
-    return_value = update_request(requests_array, info);
+    printf("Update request (%d) - '%s'\n", info->pid, info->name);
+    to_return = update_request(requests_array, info);
   } else if (type == STATUS) {
+    printf("Status request (%d)\n", info->pid);
     int pid = fork();
     if (pid == 0) {
       status_request(requests_array, info);
       exit(EXIT_SUCCESS);
     }
   } else {
-    perror("Invalid request type");
+    puts("Invalid request type received");
     exit(EXIT_FAILURE);
   }
 
-  return return_value;
+  return to_return;
 }
 
 int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
-  char *fifo_name = malloc(sizeof(char) * 32);
+  char *fifo_name = malloc(sizeof(char) * 64);
   sprintf(fifo_name, "tmp/%d.fifo", info->pid);  // NOLINT
 
   int fd;
@@ -129,8 +133,9 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   for (int i = 0; i < requests_array->current_index; i++) {
     REQUEST *request = requests_array->requests[i];
 
-    if (request->final_timestamp == 0)
+    if (request->final_timestamp == 0) {
       write_to_fd(fd, request, sizeof(REQUEST), STATUS);
+    }
   }
 
   // Send DONE to inform client that all requests were sent
@@ -139,6 +144,5 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   free(fifo_name);
   close(fd);
 
-  printf("------------------------\n");
   return 0;
 }
