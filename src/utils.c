@@ -9,7 +9,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-PROGRAM_INFO *create_program_info(int pid, char *name, suseconds_t timestamp) {
+PROGRAM_INFO *create_program_info(
+    int pid, char *name, struct timeval timestamp
+) {
   PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
 
   info->pid = pid;

@@ -5,8 +5,8 @@
 
 typedef struct request {
   int pid;
-  suseconds_t initial_timestamp;
-  suseconds_t final_timestamp;
+  struct timeval initial_timestamp;
+  struct timeval final_timestamp;
   char command[256];
 } REQUEST;
 
@@ -34,7 +34,9 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
 int find_request(REQUESTS_ARRAY *requests_array, int pid);
 
-REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command);
+REQUEST *create_request(
+    int pid, struct timeval initial_timestamp, char *command
+);
 
 int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 

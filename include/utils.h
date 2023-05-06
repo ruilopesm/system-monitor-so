@@ -21,7 +21,7 @@ typedef enum request_type {
 typedef struct program_info {
   int pid;
   char name[256];
-  suseconds_t timestamp;
+  struct timeval timestamp;
 } PROGRAM_INFO;
 
 typedef struct header {
@@ -29,7 +29,9 @@ typedef struct header {
   size_t size;
 } HEADER;
 
-PROGRAM_INFO *create_program_info(int pid, char *name, suseconds_t timestamp);
+PROGRAM_INFO *create_program_info(
+    int pid, char *name, struct timeval timestamp
+);
 
 HEADER *create_header(REQUEST_TYPE type, size_t size);
 
