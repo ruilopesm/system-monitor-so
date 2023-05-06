@@ -176,7 +176,7 @@ int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   );
   sprintf(
       data, "COMMAND: %s \nPID: %d \nDURATION[ms]: %ld", request->command,
-      request->pid, result_timeval.tv_sec
+      request->pid, result_timeval.tv_usec / 1000 + result_timeval.tv_sec * 1000
   );  // NOLINT
 
   return write_to_file(fd, data, strlen(data));
