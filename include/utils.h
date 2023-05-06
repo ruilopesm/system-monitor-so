@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <fcntl.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -20,7 +21,7 @@ typedef enum request_type {
 typedef struct program_info {
   int pid;
   char name[256];
-  suseconds_t timestamp;
+  struct timeval timestamp;
 } PROGRAM_INFO;
 
 typedef struct header {
@@ -28,7 +29,9 @@ typedef struct header {
   size_t size;
 } HEADER;
 
-PROGRAM_INFO *create_program_info(int pid, char *name, suseconds_t timestamp);
+PROGRAM_INFO *create_program_info(
+    int pid, char *name, struct timeval timestamp
+);
 
 HEADER *create_header(REQUEST_TYPE type, size_t size);
 
@@ -45,5 +48,9 @@ char *strdup(const char *s);
 int timeval_subtract(
     struct timeval *result, struct timeval *x, struct timeval *y
 );
+
+int open_file(const char *path, int flags, mode_t mode);
+
+int write_to_file(int fd, void *info, size_t size);
 
 #endif  // UTILS_H

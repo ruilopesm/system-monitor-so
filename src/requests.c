@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "monitor.h"
 #include "utils.h"
 
 REQUESTS_ARRAY *create_requests_array(int size) {
@@ -21,12 +22,17 @@ REQUESTS_ARRAY *create_requests_array(int size) {
   return requests_array;
 }
 
-REQUEST *create_request(int pid, suseconds_t initial_timestamp, char *command) {
+REQUEST *create_request(
+    int pid, struct timeval initial_timestamp, char *command
+) {
   REQUEST *request = malloc(sizeof(REQUEST));
 
   request->pid = pid;
   request->initial_timestamp = initial_timestamp;
-  request->final_timestamp = 0;
+
+  struct timeval null_timestamp = {0, 0};
+  request->final_timestamp = null_timestamp;
+
   strcpy(request->command, command);  // NOLINT
 
   return request;
@@ -108,6 +114,8 @@ int deal_request(
   } else if (type == UPDATE) {
     printf("Update request (%d) - '%s'\n", info->pid, info->name);
     to_return = update_request(requests_array, info);
+
+    store_request(requests_array, info);
   } else if (type == STATUS) {
     printf("Status request (%d)\n", info->pid);
     int pid = fork();
@@ -133,7 +141,9 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   for (int i = 0; i < requests_array->current_index; i++) {
     REQUEST *request = requests_array->requests[i];
 
-    if (request->final_timestamp == 0) {
+    // Is still running
+    if (request->final_timestamp.tv_sec == 0 &&
+        request->final_timestamp.tv_usec == 0) {
       write_to_fd(fd, request, sizeof(REQUEST), STATUS);
     }
   }
@@ -145,4 +155,37 @@ int status_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   close(fd);
 
   return 0;
+}
+
+int store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
+  int pid = info->pid;
+
+  char *pid_str = malloc(sizeof(char) * 64);
+  sprintf(pid_str, "%s/%d", folder, pid);  // NOLINT
+
+  int fd = open_file(pid_str, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+  // find the request
+  int index = find_request(requests_array, pid);
+  REQUEST *request = requests_array->requests[index];
+
+  struct timeval initial_timeval = request->initial_timestamp;
+  struct timeval final_timeval = request->final_timestamp;
+  struct timeval result_timeval;
+  timeval_subtract(&result_timeval, &final_timeval, &initial_timeval);
+
+  char *data =
+      malloc(sizeof(request->command) + sizeof(long int) + sizeof(pid) + 64);
+
+  // NOLINTBEGIN
+  sprintf(
+      data, "COMMAND: %s \nPID: %d \nDURATION[ms]: %ld", request->command,
+      request->pid, result_timeval.tv_usec / 1000 + result_timeval.tv_sec * 1000
+  );
+  // NOLINTEND
+
+  // Clean resources
+  free(pid_str);
+
+  return write_to_file(fd, data, strlen(data));
 }

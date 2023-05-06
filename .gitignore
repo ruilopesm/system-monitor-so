@@ -56,6 +56,7 @@ bin
 obj
 tmp
 .vscode
+PIDS-folder
 
 # Files
 compile_commands.json
