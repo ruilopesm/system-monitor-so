@@ -47,7 +47,7 @@ void close_fifo(int fd);
 
 ssize_t write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type);
 
-REQUEST_TYPE read_from_fd(int fd, void *info);
+void *read_from_fd(int fd, REQUEST_TYPE *type);
 
 int open_file_by_path(char *path, int flags, mode_t mode);
 

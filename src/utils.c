@@ -88,7 +88,7 @@ ssize_t write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type) {
   return written_bytes + info_written_bytes;
 }
 
-REQUEST_TYPE read_from_fd(int fd, void *info) {
+void *read_from_fd(int fd, REQUEST_TYPE *type) {
   HEADER header;
   int read_bytes = read(fd, &header, sizeof(HEADER));
 
@@ -97,15 +97,19 @@ REQUEST_TYPE read_from_fd(int fd, void *info) {
     exit(EXIT_FAILURE);
   }
 
-  info = malloc(header.size);
-  read_bytes = read(fd, info, header.size);
+  if (type != NULL) {
+    *type = header.type;
+  }
+
+  void *data = malloc(header.size);
+  read_bytes = read(fd, data, header.size);
 
   if (read_bytes == -1) {
     perror("read");
     exit(EXIT_FAILURE);
   }
 
-  return header.type;
+  return data;
 }
 
 int open_file_by_path(char *path, int flags, mode_t mode) {
@@ -168,15 +172,17 @@ int timeval_subtract(
 
 // function that parses an array of pids in the format PID-1234 to an array of just the numbers
 int *parse_pids(char **pids, int N) {
-  int *parsed_pids = malloc(sizeof(int) * N + 1);
+  printf("pids: %d\n", N);
+  int *parsed_pids = malloc(sizeof(int) * (N + 1));
 
   // the first pid is always the pid that identifies the client
   parsed_pids[0] = getpid();
 
-  for (int i = 1; i < N; i++) {
-    char *pid = strtok(pids[i], "PID-");
+  for (int i = 1; i <= N; i++) {
+    char *pid = strtok(pids[i - 1], "PID-");
     int pin_n = atoi(pid);
     parsed_pids[i] = pin_n;
+    printf("pin_n: %d\n", parsed_pids[i]);
   }
 
   return parsed_pids;

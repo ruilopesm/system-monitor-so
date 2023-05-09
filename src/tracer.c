@@ -65,12 +65,11 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   } else if (!strcmp(option, "stats-time")) {
-    // TODO: make stuff happen
     int n_pids = argc - 2;
     char **pids = argv + 2;
     int *pids_arr = parse_pids(pids, n_pids);
 
-    if (execute_stats_time(monitor_fd, pids_arr, n_pids) == -1) {
+    if (execute_stats_time(monitor_fd, pids_arr, n_pids + 1) == -1) {
       perror("execute_stats_time");
       exit(EXIT_FAILURE);
     }
@@ -112,8 +111,9 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
       // Child finished
 
       // Ensure server answered with OK
-      REQUEST_TYPE response = read_from_fd(pid_fd, NULL);
-      if (response != OK) {
+      REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
+      read_from_fd(pid_fd, type);
+      if (*type != OK) {
         printf("Server answered with an error\n");
         exit(EXIT_FAILURE);
       }
@@ -153,11 +153,13 @@ int execute_status(int monitor_fd) {
   int pid_fd;
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
 
-  REQUEST *answer_data = malloc(sizeof(REQUEST));
-  while (read_from_fd(pid_fd, answer_data) != DONE) {
+  REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
+  REQUEST *answer_data = read_from_fd(pid_fd, type);
+  while (*type != DONE) {
     printf(
         "Program '%s' running (%d)\n", answer_data->command, answer_data->pid
     );
+    answer_data = read_from_fd(pid_fd, type);
   }
 
   // Clean resources
@@ -273,8 +275,9 @@ int execute_pipeline(
       close(original_stdout);
 
       // Ensure server answered with OK
-      REQUEST_TYPE response = read_from_fd(pid_fd, NULL);
-      if (response != OK) {
+      REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
+      read_from_fd(pid_fd, type);
+      if (*type != OK) {
         printf("Server answered with an error\n");
         exit(EXIT_FAILURE);
       }
@@ -302,13 +305,13 @@ int execute_stats_time(int monitor_fd, int *pids_arr, int N) {
   pid_t pid = getpid();
   char *fifo_name = create_fifo(pid);
 
-  write_to_fd(monitor_fd, pids_arr, sizeof(pids_arr), STATS_TIME);
-
   int pid_fd;
+
+  write_to_fd(monitor_fd, pids_arr, sizeof(int) * N, STATS_TIME);
+
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
 
-  int *answer_data = malloc(sizeof(int));
-  read_from_fd(pid_fd, answer_data);
+  int *answer_data = read_from_fd(pid_fd, NULL);
 
   printf("Programs running for more than %d seconds: %d\n", N, *answer_data);
 
