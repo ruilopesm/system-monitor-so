@@ -65,11 +65,12 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   } else if (!strcmp(option, "stats-time")) {
-    int n_pids = argc - 2;
     char **pids = argv + 2;
-    int *pids_arr = parse_pids(pids, n_pids);
+    int n_pids = argc - 2;
+    int *parsed_pids = parse_pids(pids, n_pids);
+    PIDS_ARR *pids_arr = create_pids_arr(parsed_pids, n_pids, getpid());
 
-    if (execute_stats_time(monitor_fd, pids_arr, n_pids + 1) == -1) {
+    if (execute_stats_time(monitor_fd, pids_arr) == -1) {
       perror("execute_stats_time");
       exit(EXIT_FAILURE);
     }
@@ -301,19 +302,15 @@ int execute_pipeline(
   }
 }
 
-int execute_stats_time(int monitor_fd, int *pids_arr, int N) {
-  pid_t pid = getpid();
-  char *fifo_name = create_fifo(pid);
+int execute_stats_time(int monitor_fd, PIDS_ARR *pids_arr) {
+  write_to_fd(monitor_fd, pids_arr, sizeof(PIDS_ARR), STATS_TIME);
 
+  char *fifo_name = create_fifo(pids_arr->child_pid);
   int pid_fd;
-
-  write_to_fd(monitor_fd, pids_arr, sizeof(int) * N, STATS_TIME);
-
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
-
   int *answer_data = read_from_fd(pid_fd, NULL);
 
-  printf("Programs running for more than %d seconds: %d\n", N, *answer_data);
+  printf("Total execution time is %d ms\n", *answer_data);
 
   return 0;
 }

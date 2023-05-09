@@ -30,6 +30,22 @@ HEADER *create_header(REQUEST_TYPE type, size_t size) {
   return header;
 }
 
+PIDS_ARR *create_pids_arr(int *pids, int n_pids, int child_pid) {
+  PIDS_ARR *pids_arr = malloc(sizeof(PIDS_ARR));
+
+  pids_arr->n_pids = n_pids;
+
+  // Create proper array
+  pids_arr->pids = malloc(sizeof(int) * pids_arr->n_pids);
+  for (int i = 0; i < n_pids; i++) {
+    pids_arr->pids[i] = pids[i];
+  }
+
+  pids_arr->child_pid = child_pid;
+
+  return pids_arr;
+}
+
 void make_fifo(char *fifo_name) {
   if (mkfifo(fifo_name, 0666) == -1) {
     perror("mkfifo");
@@ -113,14 +129,7 @@ void *read_from_fd(int fd, REQUEST_TYPE *type) {
 }
 
 int open_file_by_path(char *path, int flags, mode_t mode) {
-  int fd = open(path, flags, mode);
-
-  if (fd == -1) {
-    perror("open");
-    exit(EXIT_FAILURE);
-  }
-
-  return fd;
+  return open(path, flags, mode);
 }
 
 ssize_t simple_write_to_fd(int fd, void *info, size_t size) {
@@ -170,45 +179,28 @@ int timeval_subtract(
   return x->tv_sec < y->tv_sec;
 }
 
-// function that parses an array of pids in the format PID-1234 to an array of just the numbers
-int *parse_pids(char **pids, int N) {
-  printf("pids: %d\n", N);
-  int *parsed_pids = malloc(sizeof(int) * (N + 1));
-
-  // the first pid is always the pid that identifies the client
-  parsed_pids[0] = getpid();
-
-  for (int i = 1; i <= N; i++) {
-    char *pid = strtok(pids[i - 1], "PID-");
-    int pin_n = atoi(pid);
-    parsed_pids[i] = pin_n;
-    printf("pin_n: %d\n", parsed_pids[i]);
-  }
-
-  return parsed_pids;
-}
-
 void divide_files_per_fork(int num_files, int *num_forks, int *files_per_fork) {
   int max_files_per_fork = 5;
+
   *num_forks = (num_files + max_files_per_fork - 1) / max_files_per_fork;
   *files_per_fork = (num_files + *num_forks - 1) / *num_forks;
 }
 
 int retrieve_time_from_file(int fd) {
-    int BUFFER_SIZE = 1024;
-    char *buffer = malloc(BUFFER_SIZE);
-    int time = -1;
+  char *buffer = malloc(sizeof(char) * 1024);
+  int time = -1;
 
-    while (read(fd, buffer, BUFFER_SIZE) > 0) {
-        // Search for "DURATION[ms]: " in the buffer
-        char *duration_pos = strstr(buffer, "DURATION[ms]: ");
-        if (duration_pos != NULL) {
-            // Retrieve the duration from the line
-            sscanf(duration_pos, "DURATION[ms]: %d", &time);
-            break;
-        }
+  while (read(fd, buffer, 1024) > 0) {
+    // Search for "DURATION[ms]: " in the buffer
+    char *duration_pos = strstr(buffer, "DURATION[ms]: ");
+    if (duration_pos != NULL) {
+      // Retrieve the duration from the line
+      sscanf(duration_pos, "DURATION[ms]: %d", &time);  // NOLINT
+      break;
     }
-    free(buffer);
+  }
 
-    return time;
+  free(buffer);
+
+  return time;
 }
