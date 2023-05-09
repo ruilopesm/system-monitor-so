@@ -7,5 +7,6 @@ int execute_pipeline(
     char *pipeline, char **parsed_pipeline, int pipeline_cmds_count,
     int monitor_fd
 );
+int execute_stats_time(int monitor_fd, int *pids_arr, int N);
 
 #endif  // TRACER_H

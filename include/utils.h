@@ -13,6 +13,7 @@ typedef enum request_type {
   NEW,
   PIPELINE,
   STATUS,
+  STATS_TIME,
   UPDATE,
   ERROR,
   DONE,
@@ -46,7 +47,7 @@ void close_fifo(int fd);
 
 ssize_t write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type);
 
-REQUEST_TYPE read_from_fd(int fd, void *info, size_t size);
+REQUEST_TYPE read_from_fd(int fd, void *info);
 
 int open_file_by_path(char *path, int flags, mode_t mode);
 
@@ -57,5 +58,11 @@ char *strdup(const char *s);
 int timeval_subtract(
     struct timeval *result, struct timeval *x, struct timeval *y
 );
+
+int *parse_pids(char **pids, int N);
+
+void divide_files_per_fork(int num_files, int *num_forks, int *files_per_fork);
+
+int retrieve_time_from_file(int fd);
 
 #endif  // UTILS_H

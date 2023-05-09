@@ -101,28 +101,35 @@ int find_request(REQUESTS_ARRAY *requests_array, pid_t pid) {
 }
 
 int deal_with_request(
-    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
+    REQUESTS_ARRAY *requests_array, void *data, REQUEST_TYPE type
 ) {
   int to_return = 0;
 
   if (type == NEW || type == PIPELINE) {
+    PROGRAM_INFO *info = (PROGRAM_INFO *) data;
     printf(
         "%s request (%d) - '%s'\n", type == NEW ? "New" : "Pipeline", info->pid,
         info->name
     );
     to_return = insert_request(requests_array, info);
   } else if (type == UPDATE) {
+    PROGRAM_INFO *info = (PROGRAM_INFO *) data;
     printf("Update request (%d) - '%s'\n", info->pid, info->name);
     to_return = update_request(requests_array, info);
 
     store_request(requests_array, info);
   } else if (type == STATUS) {
+    PROGRAM_INFO *info = (PROGRAM_INFO *) data;
     printf("Status request (%d)\n", info->pid);
     pid_t pid = fork();
     if (pid == 0) {
       status_request(requests_array, info);
       exit(EXIT_SUCCESS);
     }
+  } else if (type == STATS_TIME) {
+    int *pids_arr = (int *) data;
+    printf("Stats time request\n");
+    status_time_request(pids_arr);
   } else {
     puts("Invalid request type received");
     exit(EXIT_FAILURE);
@@ -185,4 +192,92 @@ ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   free(pid_str);
 
   return simple_write_to_fd(fd, data, strlen(data));
+}
+
+int status_time_request_aux(int pipe_fd, int *pids_arr, int N) {
+  int total_time = 0;
+
+  for (int i = 0; i < N; i++) {
+    char *pid_str = malloc(sizeof(char) * 64);
+    sprintf(pid_str, "%s/%d", folder, pids_arr[i]);  // NOLINT
+
+    int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
+    if (fd == -1) {
+      continue; // sus
+    }
+
+    int *time = malloc(sizeof(int));
+    retrieve_time_from_file(fd);
+
+    total_time += *time;
+
+    free(pid_str);
+  }
+
+  // send the total time to the pipe with a ';' in the end to separate the times
+  char *time = malloc(sizeof(char) * 64);
+  sprintf(time, "%d;", total_time);  // NOLINT
+  simple_write_to_fd(pipe_fd, time, sizeof(time));
+
+  return 0;
+}
+
+int status_time_request(int *pids_arr) {
+  // search for the requests with the given pids using forks to parallelize the search
+  // and then calculate the total time and send it to a pipe
+  int num_pids = sizeof(pids_arr) / sizeof(int);
+  int *num_forks = malloc(sizeof(int));
+  int *files_per_fork = malloc(sizeof(int));
+
+  divide_files_per_fork(num_pids, num_forks, files_per_fork);
+
+  // create pipe to send the times and calculate them in the end of the forks
+  int pipe_fd[2];
+  pipe(pipe_fd);
+
+  // create num_forks forks to search for the files
+  for (int i = 1; i < *num_forks; i++) {
+    pid_t pid = fork();
+    if (pid == 0) {
+      int index = i * (*files_per_fork) + 1;
+      status_time_request_aux(pipe_fd[1], pids_arr + index, *files_per_fork);
+      exit(EXIT_SUCCESS);
+    }
+  }
+
+  // wait for all the forks to finish and check if they finished correctly
+  for (int i = 0; i < *num_forks; i++) {
+    int status;
+    wait(&status);
+    if (WEXITSTATUS(status) != 0) {
+      return -1;
+    }
+  }
+
+  char buffer[1024];
+  int *sum = 0;
+  int nbytes;
+
+  // Read the file contents into the buffer
+  if ((nbytes = read(pipe_fd[0], buffer, sizeof(buffer))) == -1) {
+    perror("read");
+    exit(EXIT_FAILURE);
+  }
+
+  // Process the file contents and calculate the sum
+  char *token = strtok(buffer, ";");   // Get the first token
+  while (token != NULL) {
+    int value = atoi(token);   // Convert the token to an integer
+    *sum += value;              // Add the value to the sum
+    token = strtok(NULL, ";"); // Get the next token
+  }
+
+  // write the result to the client pid fifo which is int
+  char *fifo_name = malloc(sizeof(char) * 64);
+  sprintf(fifo_name, "tmp/%d.fifo", getpid());  // NOLINT
+  int *fd = malloc(sizeof(int));
+  open_fifo(fd, fifo_name, O_WRONLY);
+  write_to_fd(*fd, sum, sizeof(sum), STATS_TIME);
+  
+  return 0;
 }

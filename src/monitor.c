@@ -51,8 +51,10 @@ int main(int argc, char **argv) {
 
   while (true) {
     // Read data from the named pipe
-    PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
-    REQUEST_TYPE type = read_from_fd(fd, info, sizeof(PROGRAM_INFO));
+    void *info;
+    printf("Received request\n");
+    REQUEST_TYPE type = read_from_fd(fd, info);
+    printf("Received request\n");
 
     deal_with_request(requests_array, info, type);
 

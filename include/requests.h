@@ -17,7 +17,7 @@ typedef struct REQUESTS_ARRAY {
 } REQUESTS_ARRAY;
 
 int deal_with_request(
-    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
+    REQUESTS_ARRAY *requests_array, void *data, REQUEST_TYPE type
 );
 
 REQUESTS_ARRAY *create_requests_array(size_t size);
@@ -39,5 +39,7 @@ REQUEST *create_request(
 );
 
 ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
+
+int status_time_request(int *pids_arr);
 
 #endif  // REQUESTS_H
