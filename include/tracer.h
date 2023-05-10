@@ -14,4 +14,8 @@ int execute_pipeline(
 
 int execute_stats_time(int monitor_fd, PIDS_ARR *pids_arr);
 
+int execute_stats_command(
+    int monitor_fd, PIDS_ARR_WITH_PROGRAM *pids_arr_with_program
+);
+
 #endif  // TRACER_H

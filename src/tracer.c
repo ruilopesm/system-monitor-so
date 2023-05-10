@@ -79,6 +79,29 @@ int main(int argc, char **argv) {
       perror("execute_stats_time");
       exit(EXIT_FAILURE);
     }
+  } else if (!strcmp(option, "stats-command")) {
+    int n_pids = argc - 3;
+    if (n_pids == 0 || argc == 2) {
+      printf(
+          "Usage: %s stats-command <program> <PID-123> <PID-456> ...\n", argv[0]
+      );
+      exit(EXIT_FAILURE);
+    }
+
+    char *program_name = argv[2];
+    char **pids = argv + 3;
+    int *parsed_pids = parse_pids(pids, n_pids);
+    PIDS_ARR *pids_arr = create_pids_arr(parsed_pids, n_pids, getpid());
+    PIDS_ARR_WITH_PROGRAM *pids_arr_with_program =
+        create_pids_arr_with_program(*pids_arr, program_name);
+
+    if (execute_stats_command(monitor_fd, pids_arr_with_program) == -1) {
+      perror("execute_stats_command");
+      exit(EXIT_FAILURE);
+    }
+  } else {
+    printf("Invalid option\n");
+    exit(EXIT_FAILURE);
   }
 
   exit(EXIT_SUCCESS);
@@ -115,6 +138,7 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
     int status;
     if (wait(&status) > 0 && WIFEXITED(status)) {
       // Child finished
+      gettimeofday(&final_time, NULL);
 
       // Ensure server answered with OK
       REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
@@ -124,14 +148,13 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
         exit(EXIT_FAILURE);
       }
 
-      gettimeofday(&final_time, NULL);
       PROGRAM_INFO *done_info =
           create_program_info(pid, full_program, final_time);
       write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
       timeval_subtract(&diff, &final_time, &start_time);
-      printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
+      printf("Ended in %.3lf ms\n", timeval_to_ms(&diff));
 
       // Clean resources
       free(done_info);
@@ -273,6 +296,7 @@ int execute_pipeline(
     int status;
     if (wait(&status) > 0 && WIFEXITED(status)) {
       // Child finished
+      gettimeofday(&final_time, NULL);
 
       // Get stdin and stdout back to normal
       dup2(original_stdin, STDIN_FILENO);
@@ -288,13 +312,12 @@ int execute_pipeline(
         exit(EXIT_FAILURE);
       }
 
-      gettimeofday(&final_time, NULL);
       PROGRAM_INFO *done_info = create_program_info(pid, pipeline, final_time);
       write_to_fd(monitor_fd, done_info, sizeof(PROGRAM_INFO), UPDATE);
 
       struct timeval diff;
       timeval_subtract(&diff, &final_time, &start_time);
-      printf("Ended in %ld ms\n", diff.tv_usec / 1000 + diff.tv_sec * 1000);
+      printf("Ended in %.3lf ms\n", timeval_to_ms(&diff));
 
       // Clean resources
       free(done_info);
@@ -313,9 +336,29 @@ int execute_stats_time(int monitor_fd, PIDS_ARR *pids_arr) {
   char *fifo_name = create_fifo(pids_arr->child_pid);
   int pid_fd;
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
+  double *answer_data = read_from_fd(pid_fd, NULL);
+
+  printf("Total execution time is %.3lf ms\n", *answer_data);
+
+  exit(EXIT_SUCCESS);
+}
+
+int execute_stats_command(
+    int monitor_fd, PIDS_ARR_WITH_PROGRAM *pids_arr_with_program
+) {
+  write_to_fd(
+      monitor_fd, pids_arr_with_program, sizeof(PIDS_ARR_WITH_PROGRAM),
+      STATS_COMMAND
+  );
+
+  char *fifo_name = create_fifo(pids_arr_with_program->pids_arr.child_pid);
+  int pid_fd;
+  open_fifo(&pid_fd, fifo_name, O_RDONLY);
   int *answer_data = read_from_fd(pid_fd, NULL);
 
-  printf("Total execution time is %d ms\n", *answer_data);
+  printf(
+      "%s was executed %d times\n", pids_arr_with_program->program, *answer_data
+  );
 
-  return 0;
+  exit(EXIT_SUCCESS);
 }

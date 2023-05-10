@@ -40,6 +40,8 @@ REQUEST *create_request(
 
 ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info);
 
-int stats_time_request(PIDS_ARR *pids_arr, int n_pids);
+int stats_time_request(PIDS_ARR *pids_arr);
+
+int stats_command_request(PIDS_ARR_WITH_PROGRAM *pids_arr_with_program);
 
 #endif  // REQUESTS_H
