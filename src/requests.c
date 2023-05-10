@@ -227,7 +227,10 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
         sprintf(pid_str, "%s/%d", folder, pids_arr->pids[index]);  // NOLINT
 
         int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
-        total_time += retrieve_time_from_file(fd);
+        int time = retrieve_time_from_file(fd);
+        if (time != -1) {
+          total_time += time;
+        }
 
         // Clean resources
         free(pid_str);
