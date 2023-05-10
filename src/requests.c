@@ -141,7 +141,7 @@ int deal_with_request(
     PIDS_ARR_WITH_PROGRAM *pids_arr_with_program =
         (PIDS_ARR_WITH_PROGRAM *)data;
     printf(
-        "Stats command request for program %s with %d pids (%d)\n",
+        "Stats command request for program '%s' with %d pids (%d)\n",
         pids_arr_with_program->program, pids_arr_with_program->pids_arr.n_pids,
         pids_arr_with_program->pids_arr.child_pid
     );
