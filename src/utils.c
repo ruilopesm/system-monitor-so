@@ -45,6 +45,17 @@ PIDS_ARR *create_pids_arr(int pids[32], int n_pids, int child_pid) {
   return pids_arr;
 }
 
+PIDS_ARR_WITH_PROGRAM *create_pids_arr_with_program(
+    PIDS_ARR pids_arr, char *program
+) {
+  PIDS_ARR_WITH_PROGRAM *pids_arr_with_program =
+      malloc(sizeof(PIDS_ARR_WITH_PROGRAM));
+  pids_arr_with_program->pids_arr = pids_arr;
+  strcpy(pids_arr_with_program->program, program);  // NOLINT
+
+  return pids_arr_with_program;
+}
+
 void make_fifo(char *fifo_name) {
   if (mkfifo(fifo_name, 0666) == -1) {
     perror("mkfifo");
@@ -178,6 +189,10 @@ int timeval_subtract(
   return x->tv_sec < y->tv_sec;
 }
 
+double timeval_to_ms(struct timeval *time) {
+  return (double)time->tv_sec * 1000.0 + (double)time->tv_usec / 1000.0;
+}
+
 void divide_files_per_fork(int num_files, int *num_forks, int *files_per_fork) {
   int max_files_per_fork = 5;
 
@@ -185,16 +200,16 @@ void divide_files_per_fork(int num_files, int *num_forks, int *files_per_fork) {
   *files_per_fork = (num_files + *num_forks - 1) / *num_forks;
 }
 
-int retrieve_time_from_file(int fd) {
+double retrieve_time_from_file(int fd) {
   char *buffer = malloc(sizeof(char) * 1024);
-  int time = -1;
+  double time = -1;
 
   while (read(fd, buffer, 1024) > 0) {
     // Search for "DURATION[ms]: " in the buffer
     char *duration_pos = strstr(buffer, "DURATION[ms]: ");
     if (duration_pos != NULL) {
       // Retrieve the duration from the line
-      sscanf(duration_pos, "DURATION[ms]: %d", &time);  // NOLINT
+      sscanf(duration_pos, "DURATION[ms]: %lf", &time);  // NOLINT
       break;
     }
   }
@@ -202,4 +217,24 @@ int retrieve_time_from_file(int fd) {
   free(buffer);
 
   return time;
+}
+
+char *retrieve_program_name_from_file(int fd) {
+  char *buffer = malloc(sizeof(char) * 1024);
+  char *program_name = NULL;
+
+  while (read(fd, buffer, 1024) > 0) {
+    // Search for "COMMAND: " in the buffer
+    char *program_pos = strstr(buffer, "COMMAND: ");
+    if (program_pos != NULL) {
+      // Retrieve the program name from the line
+      program_name = malloc(sizeof(char) * 1024);
+      sscanf(program_pos, "COMMAND: %[^\n]", program_name);  // NOLINT
+      break;
+    }
+  }
+
+  free(buffer);
+
+  return program_name;
 }
