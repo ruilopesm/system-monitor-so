@@ -65,8 +65,13 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   } else if (!strcmp(option, "stats-time")) {
-    char **pids = argv + 2;
     int n_pids = argc - 2;
+    if (n_pids == 0) {
+      printf("Usage: %s stats-time <PID-123> <PID-456> ...\n", argv[0]);
+      exit(EXIT_FAILURE);
+    }
+
+    char **pids = argv + 2;
     int *parsed_pids = parse_pids(pids, n_pids);
     PIDS_ARR *pids_arr = create_pids_arr(parsed_pids, n_pids, getpid());
 
