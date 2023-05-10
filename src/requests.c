@@ -150,6 +150,17 @@ int deal_with_request(
       stats_command_request(pids_arr_with_program);
       exit(EXIT_SUCCESS);
     }
+  } else if (type == STATS_UNIQ) {
+    PIDS_ARR *pids_arr = (PIDS_ARR *)data;
+    printf(
+        "Stats uniq request with %d pids (%d)\n", pids_arr->n_pids,
+        pids_arr->child_pid
+    );
+    pid_t pid = fork();
+    if (pid == 0) {
+      stats_uniq_request(pids_arr);
+      exit(EXIT_SUCCESS);
+    }
   } else {
     printf("Invalid request type received (%d)\n", type);
     exit(EXIT_FAILURE);
@@ -282,6 +293,10 @@ int stats_time_request(PIDS_ARR *pids_arr) {
   open_fifo(&fd, fifo_name, O_WRONLY);
   write_to_fd(fd, &total_time, sizeof(double), STATS_TIME);
 
+  // Clean resources
+  free(fifo_name);
+  close(fd);
+
   return 0;
 }
 
@@ -360,5 +375,104 @@ int stats_command_request(PIDS_ARR_WITH_PROGRAM *pids_arr_with_program) {
   open_fifo(&fd, fifo_name, O_WRONLY);
   write_to_fd(fd, &total_execs, sizeof(int), STATS_COMMAND);
 
+  // Clean resources
+  close(fd);
+  free(fifo_name);
+
   exit(EXIT_SUCCESS);
+}
+
+int stats_uniq_request(PIDS_ARR *pids_arr) {
+  int n_pids = pids_arr->n_pids;
+
+  int num_forks, files_per_fork;
+  divide_files_per_fork(n_pids, &num_forks, &files_per_fork);
+
+  // pipe from childs to communicate with parent
+  int pipe_fd[2];
+  pipe(pipe_fd);
+
+  char **programs_holder = malloc(sizeof(char *) * n_pids);
+  int programs_holder_size = 0;
+
+  // Create and use num_forks forks to search for the files
+  for (int i = 0; i < num_forks; i++) {
+    pid_t pid = fork();
+    if (pid == 0) {
+      close(pipe_fd[0]);  // Close stdin on child
+
+      // Each fork will search for files_per_fork files
+      for (int j = 0; j < files_per_fork; j++) {
+        int index = i * files_per_fork + j;
+        if (index >= n_pids) {
+          break;
+        }
+
+        char *pid_str = malloc(sizeof(char) * 64);
+        // NOLINTBEGIN
+        sprintf(pid_str, "%s/%d", folder, pids_arr->pids[index]);
+        // NOLINTEND
+
+        int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
+        if (fd == -1) {
+          continue;
+        }
+
+        char *program_name = retrieve_program_name_from_file(fd);
+        simple_write_to_fd(pipe_fd[1], program_name, 256);
+
+        // Clean resources
+        free(pid_str);
+        close(fd);
+      }
+
+      exit(EXIT_SUCCESS);
+    }
+  }
+
+  close(pipe_fd[1]);  // Close stdout on parent
+
+  // Hold programs only if they are "uniq"
+  char *program_name = malloc(sizeof(char) * 256);
+  while (read(pipe_fd[0], program_name, 256) != 0) {
+    if (!is_program_in_array(
+            programs_holder, programs_holder_size, program_name
+        )) {
+      programs_holder[programs_holder_size] = strdup(program_name);
+      programs_holder_size++;
+    }
+  }
+
+  char *fifo_name = malloc(sizeof(char) * 64);
+  sprintf(fifo_name, "tmp/%d.fifo", pids_arr->child_pid);  // NOLINT
+
+  int fd;
+  open_fifo(&fd, fifo_name, O_WRONLY);
+
+  for (int i = 0; i < programs_holder_size; i++) {
+    write_to_fd(fd, programs_holder[i], 256, STATS_COMMAND);
+  }
+
+  // Send DONE to inform client that all requests were sent
+  write_to_fd(fd, NULL, 0, DONE);
+
+  // Clean resources
+  close(fd);
+  free(program_name);
+  free(fifo_name);
+  free(programs_holder);
+
+  exit(EXIT_SUCCESS);
+}
+
+int is_program_in_array(
+    char **programs_holder, int programs_holder_size, char *program_name
+) {
+  for (int i = 0; i < programs_holder_size; i++) {
+    if (!strcmp(programs_holder[i], program_name)) {
+      return 1;
+    }
+  }
+
+  return 0;
 }

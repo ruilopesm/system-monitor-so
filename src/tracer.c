@@ -99,6 +99,21 @@ int main(int argc, char **argv) {
       perror("execute_stats_command");
       exit(EXIT_FAILURE);
     }
+  } else if (!strcmp(option, "stats-uniq")) {
+    int n_pids = argc - 2;
+    if (n_pids == 0) {
+      printf("Usage: %s stats-uniq <PID-123> <PID-456> ...\n", argv[0]);
+      exit(EXIT_FAILURE);
+    }
+
+    char **pids = argv + 2;
+    int *parsed_pids = parse_pids(pids, n_pids);
+    PIDS_ARR *pids_arr = create_pids_arr(parsed_pids, n_pids, getpid());
+
+    if (execute_stats_uniq(monitor_fd, pids_arr) == -1) {
+      perror("execute_stats_uniq");
+      exit(EXIT_FAILURE);
+    }
   } else {
     printf("Invalid option\n");
     exit(EXIT_FAILURE);
@@ -114,7 +129,7 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
   struct timeval start_time, final_time;
   gettimeofday(&start_time, NULL);
 
-  int child_pid = fork();
+  pid_t child_pid = fork();
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *execute_info =
@@ -213,7 +228,7 @@ int execute_pipeline(
   int original_stdin = dup(STDIN_FILENO);
   int original_stdout = dup(STDOUT_FILENO);
 
-  int child_pid = fork();
+  pid_t child_pid = fork();
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *info = create_program_info(pid, pipeline, start_time);
@@ -359,6 +374,32 @@ int execute_stats_command(
   printf(
       "%s was executed %d times\n", pids_arr_with_program->program, *answer_data
   );
+
+  // Clean resources
+  free(answer_data);
+  free(fifo_name);
+
+  exit(EXIT_SUCCESS);
+}
+
+int execute_stats_uniq(int monitor_fd, PIDS_ARR *pids_arr) {
+  write_to_fd(monitor_fd, pids_arr, sizeof(PIDS_ARR), STATS_UNIQ);
+
+  char *fifo_name = create_fifo(pids_arr->child_pid);
+  int pid_fd;
+  open_fifo(&pid_fd, fifo_name, O_RDONLY);
+
+  REQUEST_TYPE type;
+  char *program_name = read_from_fd(pid_fd, &type);
+  while (type != DONE) {
+    printf("%s\n", program_name);
+    free(program_name);
+    program_name = read_from_fd(pid_fd, &type);
+  }
+
+  // Clean resources
+  free(program_name);
+  free(fifo_name);
 
   exit(EXIT_SUCCESS);
 }
