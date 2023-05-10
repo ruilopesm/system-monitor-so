@@ -15,6 +15,7 @@ typedef enum request_type {
   STATUS,
   STATS_TIME,
   STATS_COMMAND,
+  STATS_UNIQ,
   UPDATE,
   ERROR,
   DONE,
@@ -35,7 +36,7 @@ typedef struct header {
 typedef struct pids_arr {
   int pids[32];
   int n_pids;
-  int child_pid;
+  pid_t child_pid;
 } PIDS_ARR;
 
 typedef struct pids_arr_with_program {
@@ -49,7 +50,7 @@ PROGRAM_INFO *create_program_info(
 
 HEADER *create_header(REQUEST_TYPE type, size_t size);
 
-PIDS_ARR *create_pids_arr(int pids[32], int n_pids, int child_pid);
+PIDS_ARR *create_pids_arr(int pids[32], int n_pids, pid_t child_pid);
 
 PIDS_ARR_WITH_PROGRAM *create_pids_arr_with_program(
     PIDS_ARR pids_arr, char *program
