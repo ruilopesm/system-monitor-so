@@ -134,7 +134,20 @@ int deal_with_request(
     );
     pid_t pid = fork();
     if (pid == 0) {
-      stats_time_request(pids_arr, pids_arr->n_pids);
+      stats_time_request(pids_arr);
+      exit(EXIT_SUCCESS);
+    }
+  } else if (type == STATS_COMMAND) {
+    PIDS_ARR_WITH_PROGRAM *pids_arr_with_program =
+        (PIDS_ARR_WITH_PROGRAM *)data;
+    printf(
+        "Stats command request for program '%s' with %d pids (%d)\n",
+        pids_arr_with_program->program, pids_arr_with_program->pids_arr.n_pids,
+        pids_arr_with_program->pids_arr.child_pid
+    );
+    pid_t pid = fork();
+    if (pid == 0) {
+      stats_command_request(pids_arr_with_program);
       exit(EXIT_SUCCESS);
     }
   } else {
@@ -190,8 +203,8 @@ ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
 
   // NOLINTBEGIN
   sprintf(
-      data, "COMMAND: %s\nDURATION[ms]: %ld", request->command,
-      result_timeval.tv_usec / 1000 + result_timeval.tv_sec * 1000
+      data, "COMMAND: %s\nDURATION[ms]: %lf", request->command,
+      timeval_to_ms(&result_timeval)
   );
   // NOLINTEND
 
@@ -201,11 +214,13 @@ ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   return simple_write_to_fd(fd, data, strlen(data));
 }
 
-int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
+int stats_time_request(PIDS_ARR *pids_arr) {
+  int n_pids = pids_arr->n_pids;
+
   int num_forks, files_per_fork;
   divide_files_per_fork(n_pids, &num_forks, &files_per_fork);
 
-  // pipe from childs to comunicate with parent
+  // pipe from childs to communicate with parent
   int pipe_fd[2];
   pipe(pipe_fd);
 
@@ -214,7 +229,7 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
     pid_t pid = fork();
     if (pid == 0) {
       close(pipe_fd[0]);  // Close stdin on child
-      int total_time = 0;
+      double total_time = 0;
 
       // Each fork will search for files_per_fork files
       for (int j = 0; j < files_per_fork; j++) {
@@ -227,7 +242,11 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
         sprintf(pid_str, "%s/%d", folder, pids_arr->pids[index]);  // NOLINT
 
         int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
-        int time = retrieve_time_from_file(fd);
+        if (fd == -1) {
+          continue;
+        }
+
+        double time = retrieve_time_from_file(fd);
         if (time != -1) {
           total_time += time;
         }
@@ -237,7 +256,7 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
         close(fd);
       }
 
-      simple_write_to_fd(pipe_fd[1], &total_time, sizeof(int));
+      simple_write_to_fd(pipe_fd[1], &total_time, sizeof(double));
 
       exit(EXIT_SUCCESS);
     }
@@ -246,10 +265,10 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
   close(pipe_fd[1]);  // Close stdout on parent
 
   // Accumulate total time
-  int total_time = 0;
+  double total_time = 0.0;
   for (int i = 0; i < num_forks; i++) {
-    int value;
-    int bytes_read = read(pipe_fd[0], &value, sizeof(int));
+    double value;
+    int bytes_read = read(pipe_fd[0], &value, sizeof(double));
 
     if (bytes_read != 0) {
       total_time += value;
@@ -261,7 +280,85 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
 
   int fd;
   open_fifo(&fd, fifo_name, O_WRONLY);
-  write_to_fd(fd, &total_time, sizeof(int), STATS_TIME);
+  write_to_fd(fd, &total_time, sizeof(double), STATS_TIME);
 
   return 0;
+}
+
+int stats_command_request(PIDS_ARR_WITH_PROGRAM *pids_arr_with_program) {
+  int n_pids = pids_arr_with_program->pids_arr.n_pids;
+
+  int num_forks, files_per_fork;
+  divide_files_per_fork(n_pids, &num_forks, &files_per_fork);
+
+  // pipe from childs to communicate with parent
+  int pipe_fd[2];
+  pipe(pipe_fd);
+
+  // Create and use num_forks forks to search for the files
+  for (int i = 0; i < num_forks; i++) {
+    pid_t pid = fork();
+    if (pid == 0) {
+      close(pipe_fd[0]);  // Close stdin on child
+      int total_execs = 0;
+
+      // Each fork will search for files_per_fork files
+      for (int j = 0; j < files_per_fork; j++) {
+        int index = i * files_per_fork + j;
+        if (index >= n_pids) {
+          break;
+        }
+
+        char *pid_str = malloc(sizeof(char) * 64);
+        // NOLINTBEGIN
+        sprintf(
+            pid_str, "%s/%d", folder,
+            pids_arr_with_program->pids_arr.pids[index]
+        );
+        // NOLINTEND
+
+        int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
+        if (fd == -1) {
+          continue;
+        }
+
+        char *program_name = retrieve_program_name_from_file(fd);
+        if (!strcmp(program_name, pids_arr_with_program->program)) {
+          total_execs++;
+        }
+
+        // Clean resources
+        free(pid_str);
+        close(fd);
+      }
+
+      simple_write_to_fd(pipe_fd[1], &total_execs, sizeof(int));
+
+      exit(EXIT_SUCCESS);
+    }
+  }
+
+  close(pipe_fd[1]);  // Close stdout on parent
+
+  // Accumulate total execs
+  int total_execs = 0;
+  for (int i = 0; i < num_forks; i++) {
+    int value;
+    int bytes_read = read(pipe_fd[0], &value, sizeof(int));
+
+    if (bytes_read != 0) {
+      total_execs += value;
+    }
+  }
+
+  char *fifo_name = malloc(sizeof(char) * 64);
+  // NOLINTBEGIN
+  sprintf(fifo_name, "tmp/%d.fifo", pids_arr_with_program->pids_arr.child_pid);
+  // NOLINTEND
+
+  int fd;
+  open_fifo(&fd, fifo_name, O_WRONLY);
+  write_to_fd(fd, &total_execs, sizeof(int), STATS_COMMAND);
+
+  exit(EXIT_SUCCESS);
 }

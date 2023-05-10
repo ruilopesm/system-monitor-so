@@ -14,6 +14,7 @@ typedef enum request_type {
   PIPELINE,
   STATUS,
   STATS_TIME,
+  STATS_COMMAND,
   UPDATE,
   ERROR,
   DONE,
@@ -37,6 +38,11 @@ typedef struct pids_arr {
   int child_pid;
 } PIDS_ARR;
 
+typedef struct pids_arr_with_program {
+  PIDS_ARR pids_arr;
+  char program[256];
+} PIDS_ARR_WITH_PROGRAM;
+
 PROGRAM_INFO *create_program_info(
     pid_t pid, char *name, struct timeval timestamp
 );
@@ -44,6 +50,10 @@ PROGRAM_INFO *create_program_info(
 HEADER *create_header(REQUEST_TYPE type, size_t size);
 
 PIDS_ARR *create_pids_arr(int pids[32], int n_pids, int child_pid);
+
+PIDS_ARR_WITH_PROGRAM *create_pids_arr_with_program(
+    PIDS_ARR pids_arr, char *program
+);
 
 void make_fifo(char *fifo_name);
 
@@ -67,10 +77,14 @@ int timeval_subtract(
     struct timeval *result, struct timeval *x, struct timeval *y
 );
 
+double timeval_to_ms(struct timeval *time);
+
 int *parse_pids(char **pids, int N);
 
 void divide_files_per_fork(int num_files, int *num_forks, int *files_per_fork);
 
-int retrieve_time_from_file(int fd);
+double retrieve_time_from_file(int fd);
+
+char *retrieve_program_name_from_file(int fd);
 
 #endif  // UTILS_H
