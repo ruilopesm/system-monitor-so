@@ -242,6 +242,10 @@ int stats_time_request(PIDS_ARR *pids_arr) {
         sprintf(pid_str, "%s/%d", folder, pids_arr->pids[index]);  // NOLINT
 
         int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
+        if (fd == -1) {
+          continue;
+        }
+
         double time = retrieve_time_from_file(fd);
         if (time != -1) {
           total_time += time;
@@ -314,6 +318,10 @@ int stats_command_request(PIDS_ARR_WITH_PROGRAM *pids_arr_with_program) {
         // NOLINTEND
 
         int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
+        if (fd == -1) {
+          continue;
+        }
+
         char *program_name = retrieve_program_name_from_file(fd);
         if (!strcmp(program_name, pids_arr_with_program->program)) {
           total_execs++;
@@ -345,7 +353,9 @@ int stats_command_request(PIDS_ARR_WITH_PROGRAM *pids_arr_with_program) {
 
   char *fifo_name = malloc(sizeof(char) * 64);
   // NOLINTBEGIN
-  sprintf(fifo_name, "tmp/%d.fifo", pids_arr_with_program->pids_arr.child_pid);
+  sprintf(
+      fifo_name, "tmp/%d.fifo", pids_arr_with_program->pids_arr.child_pid
+  );  
   // NOLINTEND
 
   int fd;
