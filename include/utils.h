@@ -32,7 +32,7 @@ typedef struct header {
 } HEADER;
 
 typedef struct pids_arr {
-  int *pids;
+  int pids[32];
   int n_pids;
   int child_pid;
 } PIDS_ARR;
@@ -43,7 +43,7 @@ PROGRAM_INFO *create_program_info(
 
 HEADER *create_header(REQUEST_TYPE type, size_t size);
 
-PIDS_ARR *create_pids_arr(int *pids, int n_pids, int child_pid);
+PIDS_ARR *create_pids_arr(int pids[32], int n_pids, int child_pid);
 
 void make_fifo(char *fifo_name);
 

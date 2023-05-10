@@ -128,7 +128,10 @@ int deal_with_request(
     }
   } else if (type == STATS_TIME) {
     PIDS_ARR *pids_arr = (PIDS_ARR *)data;
-    printf("Stats time request with %d pids (%d)\n", pids_arr->n_pids, pids_arr->child_pid);
+    printf(
+        "Stats time request with %d pids (%d)\n", pids_arr->n_pids,
+        pids_arr->child_pid
+    );
     pid_t pid = fork();
     if (pid == 0) {
       stats_time_request(pids_arr, pids_arr->n_pids);
@@ -210,25 +213,26 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
   for (int i = 0; i < num_forks; i++) {
     pid_t pid = fork();
     if (pid == 0) {
-      close(pipe_fd[0]); // Close stdin on child
+      close(pipe_fd[0]);  // Close stdin on child
       int total_time = 0;
 
       // Each fork will search for files_per_fork files
-      // for (int j = 0; j < files_per_fork; j++) {
-      //   int index = i * files_per_fork + j;
-      //   if (index >= n_pids) {
-      //     break;
-      //   }
+      for (int j = 0; j < files_per_fork; j++) {
+        int index = i * files_per_fork + j;
+        if (index >= n_pids) {
+          break;
+        }
 
-        char *pid_str = "PIDS-folder/36793";
-        
+        char *pid_str = malloc(sizeof(char) * 64);
+        sprintf(pid_str, "%s/%d", folder, pids_arr->pids[index]);  // NOLINT
+
         int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
         total_time += retrieve_time_from_file(fd);
 
         // Clean resources
-        // free(pid_str);
+        free(pid_str);
         close(fd);
-      // }
+      }
 
       simple_write_to_fd(pipe_fd[1], &total_time, sizeof(int));
 
@@ -236,7 +240,7 @@ int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
     }
   }
 
-  close(pipe_fd[1]); // Close stdout on parent
+  close(pipe_fd[1]);  // Close stdout on parent
 
   // Accumulate total time
   int total_time = 0;
