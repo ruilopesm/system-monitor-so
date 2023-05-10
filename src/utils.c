@@ -30,7 +30,7 @@ HEADER *create_header(REQUEST_TYPE type, size_t size) {
   return header;
 }
 
-PIDS_ARR *create_pids_arr(int pids[32], int n_pids, int child_pid) {
+PIDS_ARR *create_pids_arr(int pids[32], int n_pids, pid_t child_pid) {
   PIDS_ARR *pids_arr = malloc(sizeof(PIDS_ARR));
 
   pids_arr->n_pids = n_pids;
