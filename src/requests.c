@@ -353,9 +353,7 @@ int stats_command_request(PIDS_ARR_WITH_PROGRAM *pids_arr_with_program) {
 
   char *fifo_name = malloc(sizeof(char) * 64);
   // NOLINTBEGIN
-  sprintf(
-      fifo_name, "tmp/%d.fifo", pids_arr_with_program->pids_arr.child_pid
-  );  
+  sprintf(fifo_name, "tmp/%d.fifo", pids_arr_with_program->pids_arr.child_pid);
   // NOLINTEND
 
   int fd;
