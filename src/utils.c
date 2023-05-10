@@ -30,6 +30,21 @@ HEADER *create_header(REQUEST_TYPE type, size_t size) {
   return header;
 }
 
+PIDS_ARR *create_pids_arr(int pids[32], int n_pids, int child_pid) {
+  PIDS_ARR *pids_arr = malloc(sizeof(PIDS_ARR));
+
+  pids_arr->n_pids = n_pids;
+
+  // Create proper array
+  for (int i = 0; i < n_pids; i++) {
+    pids_arr->pids[i] = pids[i];
+  }
+
+  pids_arr->child_pid = child_pid;
+
+  return pids_arr;
+}
+
 void make_fifo(char *fifo_name) {
   if (mkfifo(fifo_name, 0666) == -1) {
     perror("mkfifo");
@@ -88,7 +103,7 @@ ssize_t write_to_fd(int fd, void *info, size_t size, REQUEST_TYPE type) {
   return written_bytes + info_written_bytes;
 }
 
-REQUEST_TYPE read_from_fd(int fd, void *info, size_t size) {
+void *read_from_fd(int fd, REQUEST_TYPE *type) {
   HEADER header;
   int read_bytes = read(fd, &header, sizeof(HEADER));
 
@@ -97,25 +112,23 @@ REQUEST_TYPE read_from_fd(int fd, void *info, size_t size) {
     exit(EXIT_FAILURE);
   }
 
-  read_bytes = read(fd, info, size);
+  if (type != NULL) {
+    *type = header.type;
+  }
+
+  void *data = malloc(header.size);
+  read_bytes = read(fd, data, header.size);
 
   if (read_bytes == -1) {
     perror("read");
     exit(EXIT_FAILURE);
   }
 
-  return header.type;
+  return data;
 }
 
 int open_file_by_path(char *path, int flags, mode_t mode) {
-  int fd = open(path, flags, mode);
-
-  if (fd == -1) {
-    perror("open");
-    exit(EXIT_FAILURE);
-  }
-
-  return fd;
+  return open(path, flags, mode);
 }
 
 ssize_t simple_write_to_fd(int fd, void *info, size_t size) {
@@ -163,4 +176,30 @@ int timeval_subtract(
 
   // Return 1 if result is negative
   return x->tv_sec < y->tv_sec;
+}
+
+void divide_files_per_fork(int num_files, int *num_forks, int *files_per_fork) {
+  int max_files_per_fork = 5;
+
+  *num_forks = (num_files + max_files_per_fork - 1) / max_files_per_fork;
+  *files_per_fork = (num_files + *num_forks - 1) / *num_forks;
+}
+
+int retrieve_time_from_file(int fd) {
+  char *buffer = malloc(sizeof(char) * 1024);
+  int time = -1;
+
+  while (read(fd, buffer, 1024) > 0) {
+    // Search for "DURATION[ms]: " in the buffer
+    char *duration_pos = strstr(buffer, "DURATION[ms]: ");
+    if (duration_pos != NULL) {
+      // Retrieve the duration from the line
+      sscanf(duration_pos, "DURATION[ms]: %d", &time);  // NOLINT
+      break;
+    }
+  }
+
+  free(buffer);
+
+  return time;
 }

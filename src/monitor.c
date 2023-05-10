@@ -51,12 +51,13 @@ int main(int argc, char **argv) {
 
   while (true) {
     // Read data from the named pipe
-    PROGRAM_INFO *info = malloc(sizeof(PROGRAM_INFO));
-    REQUEST_TYPE type = read_from_fd(fd, info, sizeof(PROGRAM_INFO));
+    REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
+    void *info = read_from_fd(fd, type);
 
-    deal_with_request(requests_array, info, type);
+    deal_with_request(requests_array, info, *type);
 
     free(info);
+    free(type);
   }
 
   // Close the named pipes
