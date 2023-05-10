@@ -64,6 +64,21 @@ int main(int argc, char **argv) {
       perror("execute_status");
       exit(EXIT_FAILURE);
     }
+  } else if (!strcmp(option, "stats-time")) {
+    int n_pids = argc - 2;
+    if (n_pids == 0) {
+      printf("Usage: %s stats-time <PID-123> <PID-456> ...\n", argv[0]);
+      exit(EXIT_FAILURE);
+    }
+
+    char **pids = argv + 2;
+    int *parsed_pids = parse_pids(pids, n_pids);
+    PIDS_ARR *pids_arr = create_pids_arr(parsed_pids, n_pids, getpid());
+
+    if (execute_stats_time(monitor_fd, pids_arr) == -1) {
+      perror("execute_stats_time");
+      exit(EXIT_FAILURE);
+    }
   }
 
   exit(EXIT_SUCCESS);
@@ -102,8 +117,9 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
       // Child finished
 
       // Ensure server answered with OK
-      REQUEST_TYPE response = read_from_fd(pid_fd, NULL, sizeof(HEADER));
-      if (response != OK) {
+      REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
+      read_from_fd(pid_fd, type);
+      if (*type != OK) {
         printf("Server answered with an error\n");
         exit(EXIT_FAILURE);
       }
@@ -143,11 +159,13 @@ int execute_status(int monitor_fd) {
   int pid_fd;
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
 
-  REQUEST *answer_data = malloc(sizeof(REQUEST));
-  while (read_from_fd(pid_fd, answer_data, sizeof(REQUEST)) != DONE) {
+  REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
+  REQUEST *answer_data = read_from_fd(pid_fd, type);
+  while (*type != DONE) {
     printf(
         "Program '%s' running (%d)\n", answer_data->command, answer_data->pid
     );
+    answer_data = read_from_fd(pid_fd, type);
   }
 
   // Clean resources
@@ -263,8 +281,9 @@ int execute_pipeline(
       close(original_stdout);
 
       // Ensure server answered with OK
-      REQUEST_TYPE response = read_from_fd(pid_fd, NULL, sizeof(HEADER));
-      if (response != OK) {
+      REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
+      read_from_fd(pid_fd, type);
+      if (*type != OK) {
         printf("Server answered with an error\n");
         exit(EXIT_FAILURE);
       }
@@ -286,4 +305,17 @@ int execute_pipeline(
 
     exit(EXIT_FAILURE);
   }
+}
+
+int execute_stats_time(int monitor_fd, PIDS_ARR *pids_arr) {
+  write_to_fd(monitor_fd, pids_arr, sizeof(PIDS_ARR), STATS_TIME);
+
+  char *fifo_name = create_fifo(pids_arr->child_pid);
+  int pid_fd;
+  open_fifo(&pid_fd, fifo_name, O_RDONLY);
+  int *answer_data = read_from_fd(pid_fd, NULL);
+
+  printf("Total execution time is %d ms\n", *answer_data);
+
+  return 0;
 }

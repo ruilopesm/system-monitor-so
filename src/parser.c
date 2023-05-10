@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 char **parse_command(char *command, int *counter, char *delim) {
   char **parsed_command = malloc(sizeof(char *));
@@ -24,4 +25,16 @@ char **parse_command(char *command, int *counter, char *delim) {
   }
 
   return parsed_command;
+}
+
+// Returns an array of integers (int *)
+int *parse_pids(char **pids, int N) {
+  int *parsed_pids = malloc(sizeof(int) * N);
+
+  for (int i = 0; i < N; i++) {
+    char *pid = strtok(pids[i], "PID-");
+    parsed_pids[i] = atoi(pid);
+  }
+
+  return parsed_pids;
 }

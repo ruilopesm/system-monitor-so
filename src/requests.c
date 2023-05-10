@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include "monitor.h"
@@ -101,30 +102,43 @@ int find_request(REQUESTS_ARRAY *requests_array, pid_t pid) {
 }
 
 int deal_with_request(
-    REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info, REQUEST_TYPE type
+    REQUESTS_ARRAY *requests_array, void *data, REQUEST_TYPE type
 ) {
   int to_return = 0;
 
   if (type == NEW || type == PIPELINE) {
+    PROGRAM_INFO *info = (PROGRAM_INFO *)data;
     printf(
         "%s request (%d) - '%s'\n", type == NEW ? "New" : "Pipeline", info->pid,
         info->name
     );
     to_return = insert_request(requests_array, info);
   } else if (type == UPDATE) {
+    PROGRAM_INFO *info = (PROGRAM_INFO *)data;
     printf("Update request (%d) - '%s'\n", info->pid, info->name);
     to_return = update_request(requests_array, info);
-
     store_request(requests_array, info);
   } else if (type == STATUS) {
+    PROGRAM_INFO *info = (PROGRAM_INFO *)data;
     printf("Status request (%d)\n", info->pid);
     pid_t pid = fork();
     if (pid == 0) {
       status_request(requests_array, info);
       exit(EXIT_SUCCESS);
     }
+  } else if (type == STATS_TIME) {
+    PIDS_ARR *pids_arr = (PIDS_ARR *)data;
+    printf(
+        "Stats time request with %d pids (%d)\n", pids_arr->n_pids,
+        pids_arr->child_pid
+    );
+    pid_t pid = fork();
+    if (pid == 0) {
+      stats_time_request(pids_arr, pids_arr->n_pids);
+      exit(EXIT_SUCCESS);
+    }
   } else {
-    puts("Invalid request type received");
+    printf("Invalid request type received (%d)\n", type);
     exit(EXIT_FAILURE);
   }
 
@@ -185,4 +199,69 @@ ssize_t store_request(REQUESTS_ARRAY *requests_array, PROGRAM_INFO *info) {
   free(pid_str);
 
   return simple_write_to_fd(fd, data, strlen(data));
+}
+
+int stats_time_request(PIDS_ARR *pids_arr, int n_pids) {
+  int num_forks, files_per_fork;
+  divide_files_per_fork(n_pids, &num_forks, &files_per_fork);
+
+  // pipe from childs to comunicate with parent
+  int pipe_fd[2];
+  pipe(pipe_fd);
+
+  // Create and use num_forks forks to search for the files
+  for (int i = 0; i < num_forks; i++) {
+    pid_t pid = fork();
+    if (pid == 0) {
+      close(pipe_fd[0]);  // Close stdin on child
+      int total_time = 0;
+
+      // Each fork will search for files_per_fork files
+      for (int j = 0; j < files_per_fork; j++) {
+        int index = i * files_per_fork + j;
+        if (index >= n_pids) {
+          break;
+        }
+
+        char *pid_str = malloc(sizeof(char) * 64);
+        sprintf(pid_str, "%s/%d", folder, pids_arr->pids[index]);  // NOLINT
+
+        int fd = open_file_by_path(pid_str, O_RDONLY, 0644);
+        int time = retrieve_time_from_file(fd);
+        if (time != -1) {
+          total_time += time;
+        }
+
+        // Clean resources
+        free(pid_str);
+        close(fd);
+      }
+
+      simple_write_to_fd(pipe_fd[1], &total_time, sizeof(int));
+
+      exit(EXIT_SUCCESS);
+    }
+  }
+
+  close(pipe_fd[1]);  // Close stdout on parent
+
+  // Accumulate total time
+  int total_time = 0;
+  for (int i = 0; i < num_forks; i++) {
+    int value;
+    int bytes_read = read(pipe_fd[0], &value, sizeof(int));
+
+    if (bytes_read != 0) {
+      total_time += value;
+    }
+  }
+
+  char *fifo_name = malloc(sizeof(char) * 64);
+  sprintf(fifo_name, "tmp/%d.fifo", pids_arr->child_pid);  // NOLINT
+
+  int fd;
+  open_fifo(&fd, fifo_name, O_WRONLY);
+  write_to_fd(fd, &total_time, sizeof(int), STATS_TIME);
+
+  return 0;
 }
