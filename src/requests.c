@@ -108,19 +108,19 @@ int deal_with_request(
 
   if (type == NEW || type == PIPELINE) {
     PROGRAM_INFO *info = (PROGRAM_INFO *)data;
-    printf(
+    wprintf(
         "%s request (%d) - '%s'\n", type == NEW ? "New" : "Pipeline", info->pid,
         info->name
     );
     to_return = insert_request(requests_array, info);
   } else if (type == UPDATE) {
     PROGRAM_INFO *info = (PROGRAM_INFO *)data;
-    printf("Update request (%d) - '%s'\n", info->pid, info->name);
+    wprintf("Update request (%d) - '%s'\n", info->pid, info->name);
     to_return = update_request(requests_array, info);
     store_request(requests_array, info);
   } else if (type == STATUS) {
     PROGRAM_INFO *info = (PROGRAM_INFO *)data;
-    printf("Status request (%d)\n", info->pid);
+    wprintf("Status request (%d)\n", info->pid);
     pid_t pid = fork();
     if (pid == 0) {
       status_request(requests_array, info);
@@ -128,7 +128,7 @@ int deal_with_request(
     }
   } else if (type == STATS_TIME) {
     PIDS_ARR *pids_arr = (PIDS_ARR *)data;
-    printf(
+    wprintf(
         "Stats time request with %d pids (%d)\n", pids_arr->n_pids,
         pids_arr->child_pid
     );
@@ -140,7 +140,7 @@ int deal_with_request(
   } else if (type == STATS_COMMAND) {
     PIDS_ARR_WITH_PROGRAM *pids_arr_with_program =
         (PIDS_ARR_WITH_PROGRAM *)data;
-    printf(
+    wprintf(
         "Stats command request for program '%s' with %d pids (%d)\n",
         pids_arr_with_program->program, pids_arr_with_program->pids_arr.n_pids,
         pids_arr_with_program->pids_arr.child_pid
@@ -152,7 +152,7 @@ int deal_with_request(
     }
   } else if (type == STATS_UNIQ) {
     PIDS_ARR *pids_arr = (PIDS_ARR *)data;
-    printf(
+    wprintf(
         "Stats uniq request with %d pids (%d)\n", pids_arr->n_pids,
         pids_arr->child_pid
     );
@@ -162,7 +162,7 @@ int deal_with_request(
       exit(EXIT_SUCCESS);
     }
   } else {
-    printf("Invalid request type received (%d)\n", type);
+    wprintf("Invalid request type received (%d)\n", type);
     exit(EXIT_FAILURE);
   }
 
