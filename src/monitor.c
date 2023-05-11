@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     // Folder has been specified
     folder = argv[1];
   } else if (argc > 2) {
-    printf("Usage: %s <folder>\n", argv[0]);
+    wprintf("Usage: %s <folder>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   // Create the named pipe
   make_fifo(MAIN_FIFO_NAME);
 
-  printf("Monitor is running...\n");
+  wprintf("Monitor is running...\n");
 
   // Open the named pipe for reading
   int fd;

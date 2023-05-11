@@ -88,4 +88,6 @@ double retrieve_time_from_file(int fd);
 
 char *retrieve_program_name_from_file(int fd);
 
+int wprintf(const char *format, ...);
+
 #endif  // UTILS_H
