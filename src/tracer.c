@@ -17,7 +17,7 @@
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    printf("Usage: %s <option>\n", argv[0]);
+    wprintf("Usage: %s <option>\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
   } else if (!strcmp(option, "stats-time")) {
     int n_pids = argc - 2;
     if (n_pids == 0) {
-      printf("Usage: %s stats-time <PID-123> <PID-456> ...\n", argv[0]);
+      wprintf("Usage: %s stats-time <PID-123> <PID-456> ...\n", argv[0]);
       exit(EXIT_FAILURE);
     }
 
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
   } else if (!strcmp(option, "stats-command")) {
     int n_pids = argc - 3;
     if (n_pids == 0 || argc == 2) {
-      printf(
+      wprintf(
           "Usage: %s stats-command <program> <PID-123> <PID-456> ...\n", argv[0]
       );
       exit(EXIT_FAILURE);
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
   } else if (!strcmp(option, "stats-uniq")) {
     int n_pids = argc - 2;
     if (n_pids == 0) {
-      printf("Usage: %s stats-uniq <PID-123> <PID-456> ...\n", argv[0]);
+      wprintf("Usage: %s stats-uniq <PID-123> <PID-456> ...\n", argv[0]);
       exit(EXIT_FAILURE);
     }
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
       exit(EXIT_FAILURE);
     }
   } else {
-    printf("Invalid option\n");
+    wprintf("Invalid option\n");
     exit(EXIT_FAILURE);
   }
 
@@ -159,7 +159,7 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
       REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
       read_from_fd(pid_fd, type);
       if (*type != OK) {
-        printf("Server answered with an error\n");
+        wprintf("Server answered with an error\n");
         exit(EXIT_FAILURE);
       }
 
@@ -169,7 +169,7 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
 
       struct timeval diff;
       timeval_subtract(&diff, &final_time, &start_time);
-      printf("Ended in %.3lf ms\n", timeval_to_ms(&diff));
+      wprintf("Ended in %.3lf ms\n", timeval_to_ms(&diff));
 
       // Clean resources
       free(done_info);
@@ -200,7 +200,7 @@ int execute_status(int monitor_fd) {
   REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
   REQUEST *answer_data = read_from_fd(pid_fd, type);
   while (*type != DONE) {
-    printf(
+    wprintf(
         "Program '%s' running (%d)\n", answer_data->command, answer_data->pid
     );
     answer_data = read_from_fd(pid_fd, type);
@@ -323,7 +323,7 @@ int execute_pipeline(
       REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
       read_from_fd(pid_fd, type);
       if (*type != OK) {
-        printf("Server answered with an error\n");
+        wprintf("Server answered with an error\n");
         exit(EXIT_FAILURE);
       }
 
@@ -332,7 +332,7 @@ int execute_pipeline(
 
       struct timeval diff;
       timeval_subtract(&diff, &final_time, &start_time);
-      printf("Ended in %.3lf ms\n", timeval_to_ms(&diff));
+      wprintf("Ended in %.3lf ms\n", timeval_to_ms(&diff));
 
       // Clean resources
       free(done_info);
@@ -353,7 +353,7 @@ int execute_stats_time(int monitor_fd, PIDS_ARR *pids_arr) {
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
   double *answer_data = read_from_fd(pid_fd, NULL);
 
-  printf("Total execution time is %.3lf ms\n", *answer_data);
+  wprintf("Total execution time is %.3lf ms\n", *answer_data);
 
   exit(EXIT_SUCCESS);
 }
@@ -371,7 +371,7 @@ int execute_stats_command(
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
   int *answer_data = read_from_fd(pid_fd, NULL);
 
-  printf(
+  wprintf(
       "%s was executed %d times\n", pids_arr_with_program->program, *answer_data
   );
 
@@ -392,7 +392,7 @@ int execute_stats_uniq(int monitor_fd, PIDS_ARR *pids_arr) {
   REQUEST_TYPE type;
   char *program_name = read_from_fd(pid_fd, &type);
   while (type != DONE) {
-    printf("%s\n", program_name);
+    wprintf("%s\n", program_name);
     free(program_name);
     program_name = read_from_fd(pid_fd, &type);
   }
