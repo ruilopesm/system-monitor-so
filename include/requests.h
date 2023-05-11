@@ -44,4 +44,8 @@ int stats_time_request(PIDS_ARR *pids_arr);
 
 int stats_command_request(PIDS_ARR_WITH_PROGRAM *pids_arr_with_program);
 
+int stats_uniq_request(PIDS_ARR *pids_arr);
+
+int is_program_in_array(char **array, int size, char *program_name);
+
 #endif  // REQUESTS_H

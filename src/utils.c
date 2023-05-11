@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +31,7 @@ HEADER *create_header(REQUEST_TYPE type, size_t size) {
   return header;
 }
 
-PIDS_ARR *create_pids_arr(int pids[32], int n_pids, int child_pid) {
+PIDS_ARR *create_pids_arr(int pids[32], int n_pids, pid_t child_pid) {
   PIDS_ARR *pids_arr = malloc(sizeof(PIDS_ARR));
 
   pids_arr->n_pids = n_pids;
@@ -237,4 +238,20 @@ char *retrieve_program_name_from_file(int fd) {
   free(buffer);
 
   return program_name;
+}
+
+int wprintf(const char *format, ...) {
+  char buffer[1024];
+  int num_written = 0;
+
+  va_list args;
+  va_start(args, format);
+
+  int result = vsnprintf(buffer, 1024, format, args);  //NOLINT
+  if (result >= 0 && result < 1024) {
+    num_written = write(1, buffer, result);
+  }
+  va_end(args);
+
+  return num_written;
 }
