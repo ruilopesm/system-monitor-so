@@ -127,9 +127,11 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
   char *fifo_name = create_fifo(pid);
 
   struct timeval start_time, final_time;
-  gettimeofday(&start_time, NULL);
 
   pid_t child_pid = fork();
+
+  gettimeofday(&start_time, NULL);
+
   if (child_pid == 0) {
     // Child
     PROGRAM_INFO *execute_info =
