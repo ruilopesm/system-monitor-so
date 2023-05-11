@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <fcntl.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +9,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdarg.h>
 
 PROGRAM_INFO *create_program_info(
     pid_t pid, char *name, struct timeval timestamp
@@ -241,17 +241,17 @@ char *retrieve_program_name_from_file(int fd) {
 }
 
 int wprintf(const char *format, ...) {
-    char buffer[1024];
-    int num_written = 0;
+  char buffer[1024];
+  int num_written = 0;
 
-    va_list args;
-    va_start(args, format);
+  va_list args;
+  va_start(args, format);
 
-    int result = vsnprintf(buffer, 1024, format, args);
-    if (result >= 0 && result < 1024) {
-        num_written = write(1, buffer, result);
-    }
-    va_end(args);
+  int result = vsnprintf(buffer, 1024, format, args);  //NOLINT
+  if (result >= 0 && result < 1024) {
+    num_written = write(1, buffer, result);
+  }
+  va_end(args);
 
-    return num_written;
+  return num_written;
 }
