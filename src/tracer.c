@@ -134,6 +134,8 @@ int execute_program(char *full_program, char **parsed_program, int monitor_fd) {
 
   if (child_pid == 0) {
     // Child
+    wprintf("Running PID %d\n", pid);
+
     PROGRAM_INFO *execute_info =
         create_program_info(pid, full_program, start_time);
     write_to_fd(monitor_fd, execute_info, sizeof(PROGRAM_INFO), NEW);
@@ -210,9 +212,9 @@ int execute_status(int monitor_fd) {
   timeval_subtract(&diff, &current_timestamp, &answer_data->initial_timestamp);
 
   while (type != DONE) {
-    printf(
-        "Program '%s' running (%d) for %.3lf ms\n", answer_data->command,
-        answer_data->pid, timeval_to_ms(&diff)
+    wprintf(
+        "%d %s %.3lf ms\n", answer_data->pid, answer_data->command,
+        timeval_to_ms(&diff)
     );
     answer_data = read_from_fd(pid_fd, &type);
   }
@@ -242,6 +244,8 @@ int execute_pipeline(
   pid_t child_pid = fork();
   if (child_pid == 0) {
     // Child
+    wprintf("Running PID %d\n", pid);
+
     PROGRAM_INFO *info = create_program_info(pid, pipeline, start_time);
     write_to_fd(monitor_fd, info, sizeof(PROGRAM_INFO), PIPELINE);
 
