@@ -199,13 +199,22 @@ int execute_status(int monitor_fd) {
   int pid_fd;
   open_fifo(&pid_fd, fifo_name, O_RDONLY);
 
-  REQUEST_TYPE *type = malloc(sizeof(REQUEST_TYPE));
-  REQUEST *answer_data = read_from_fd(pid_fd, type);
-  while (*type != DONE) {
-    wprintf(
-        "Program '%s' running (%d)\n", answer_data->command, answer_data->pid
+  REQUEST_TYPE type;
+  REQUEST *answer_data = read_from_fd(pid_fd, &type);
+
+  // Get current timestamp for calculations
+  struct timeval current_timestamp;
+  gettimeofday(&current_timestamp, NULL);
+
+  struct timeval diff;
+  timeval_subtract(&diff, &current_timestamp, &answer_data->initial_timestamp);
+
+  while (type != DONE) {
+    printf(
+        "Program '%s' running (%d) for %.3lf ms\n", answer_data->command,
+        answer_data->pid, timeval_to_ms(&diff)
     );
-    answer_data = read_from_fd(pid_fd, type);
+    answer_data = read_from_fd(pid_fd, &type);
   }
 
   // Clean resources
