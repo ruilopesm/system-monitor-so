@@ -23,7 +23,7 @@ Examples of commands that can be used by a client:
 #### Clone the repository
 
 ```bash
-$ cd git clone git@github.com:RuiL1904/System-Monitor-SO.git
+$ git clone git@github.com:RuiL1904/System-Monitor-SO.git
 ```
 
 #### Compiling  
