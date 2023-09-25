@@ -45,6 +45,6 @@ $ ./bin/tracer execute -u "ls"
 ```
 
 # Developed by:
-- [Rui Lopes](https://github.com/RuiL1904)
+- [Rui Lopes](https://github.com/ruilopesm)
 - [Daniel Pereira](https://github.com/danielsp45)
 - [Pedro Sousa](https://github.com/Pdf0)
