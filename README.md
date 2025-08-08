@@ -1,7 +1,6 @@
 # System-Monitor
 
-## Operating Systems | Sistemas Operativos
-## Grade: 19/20 :star:
+> 19/20 :star:
 
 This project was developed during the second semester of the 2nd year of the Software Engineering degree @ University of Minho.
 
